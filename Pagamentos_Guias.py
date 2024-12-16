@@ -73,6 +73,7 @@ def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 
     # Use the credentials to authorize the gspread client
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+    client = gspread.authorize(credentials)
 
     spreadsheet = client.open_by_key(id_gsheet)
     
@@ -136,6 +137,7 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
     
         # Use the credentials to authorize the gspread client
         credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+        client = gspread.authorize(credentials)
         
         spreadsheet = client.open_by_key(id_gsheet)
 
@@ -394,6 +396,7 @@ def verificar_guia_sem_telefone(id_gsheet, guia, lista_guias_com_telefone):
     
         # Use the credentials to authorize the gspread client
         credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+        client = gspread.authorize(credentials)
         
         spreadsheet = client.open_by_key(id_gsheet)
 
