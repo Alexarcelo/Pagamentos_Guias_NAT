@@ -23,7 +23,7 @@ def gerar_df_phoenix(vw_name, base_luck):
     conexao = mysql.connector.connect(**config)
     cursor = conexao.cursor()
 
-    request_name = f'SELECT * FROM {vw_name}'
+    request_name = f'SELECT `Data | Horario Apresentacao`, `Data da Escala`, `Status da Reserva`, `Escala`, `Motorista`, `Guia`, `Idioma`, `Servico`, `Tipo de Servico`, `Total ADT`, `Total CHD`, `Modo`, `Veiculo`, `Tipo Veiculo`, `Apoio`, `Est. Origem`, `Horario Voo`, `Voo` FROM {vw_name}'
 
     # Script MySql para requests
     cursor.execute(
@@ -86,6 +86,10 @@ def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 def transformar_em_listas(idiomas):
 
     return list(set(idiomas))
+
+def transformar_em_string(apoio):
+
+    return ', '.join(list(set(apoio.dropna())))
 
 def tratar_colunas_idioma(df_escalas_group):
     
@@ -216,7 +220,7 @@ def preencher_colunas_df(df_apoios_group):
 
 def adicionar_apoios_em_dataframe(df_escalas_pag):
 
-    df_escalas_com_apoio = df_escalas_pag[~pd.isna(df_escalas_pag['Apoio'])].reset_index(drop=True)
+    df_escalas_com_apoio = df_escalas_pag[(df_escalas_pag['Apoio']!='') & (~df_escalas_pag['Apoio'].str.contains(r' \| ', regex=True))].reset_index(drop=True)
 
     df_escalas_com_apoio = criar_colunas_escala_veiculo_mot_guia(df_escalas_com_apoio)
 
@@ -228,8 +232,55 @@ def adicionar_apoios_em_dataframe(df_escalas_pag):
 
     df_apoios_group[['Servico', 'Tipo de Servico', 'Modo', 'Apoio', 'Idioma', 'Total ADT | CHD', 'Horario Voo', 'Valor Padrão', 'Valor Espanhol', 'Valor Inglês', 
                      'Adicional Passeio Motoguia', 'Adicional Motoguia Após 20:00']] = ['APOIO', 'TRANSFER', 'REGULAR', None, '', 0, time(0,0), 28, 28, 28, 0, 0]
+    
+    df_apoios_group = df_apoios_group[df_apoios_group['Guia']!='null'].reset_index(drop=True)
 
     df_escalas_pag = pd.concat([df_escalas_pag, df_apoios_group], ignore_index=True)
+
+    df_escalas_com_2_apoios = df_escalas_pag[(df_escalas_pag['Apoio']!='') & (df_escalas_pag['Apoio'].str.contains(r' \| ', regex=True))].reset_index(drop=True)
+
+    df_novo = pd.DataFrame(columns=['Escala', 'Veiculo', 'Motorista', 'Guia', 'Data | Horario Apresentacao', 'Data da Escala'])
+
+    for index in range(len(df_escalas_com_2_apoios)):
+
+        data_escala = df_escalas_com_2_apoios.at[index, 'Data da Escala']
+
+        apoio_nome = df_escalas_com_2_apoios.at[index, 'Apoio']
+
+        data_h_apr = df_escalas_com_2_apoios.at[index, 'Data | Horario Apresentacao']
+
+        lista_apoios = apoio_nome.split(' | ')
+
+        for item in lista_apoios:
+
+            dict_replace = {'Escala Auxiliar: ': '', ' Veículo: ': '', ' Motorista: ': '', ' Guia: ': ''}
+
+            for old, new in dict_replace.items():
+
+                item = item.replace(old, new)
+                
+            lista_insercao = item.split(',')
+
+            contador = len(df_novo)
+
+            df_novo.at[contador, 'Escala'] = lista_insercao[0]
+
+            df_novo.at[contador, 'Veiculo'] = lista_insercao[1]
+
+            df_novo.at[contador, 'Motorista'] = lista_insercao[2]
+
+            df_novo.at[contador, 'Guia'] = lista_insercao[3]
+
+            df_novo.at[contador, 'Data | Horario Apresentacao'] = data_h_apr
+
+            df_novo.at[contador, 'Data da Escala'] = data_escala
+
+    df_novo = df_novo[df_novo['Guia']!='null'].reset_index(drop=True)
+
+    df_novo[['Servico', 'Tipo de Servico', 'Modo', 'Apoio', 'Idioma', 'Total ADT | CHD', 'Horario Voo', 'Valor Padrão', 'Valor Espanhol', 'Valor Inglês', 'Adicional Passeio Motoguia', 
+             'Adicional Motoguia Após 20:00']] = ['APOIO', 'TRANSFER', 'REGULAR', None, '', 0, time(0,0), 28, 28, 28, 0, 0]
+
+    df_escalas_pag = pd.concat([df_escalas_pag, df_novo], ignore_index=True)
 
     return df_escalas_pag
 
@@ -419,6 +470,40 @@ def verificar_guia_sem_telefone(id_gsheet, guia, lista_guias_com_telefone):
 
     return telefone_guia
 
+def ajuste_passeios_escalas_diferentes(df_escalas_pag):
+
+    dict_servicos_duplicados = {'Passeio Pipa - Camurupim': 'Passeio à Pipa', 'Passeio City Tour - meio período ': 'City Tour com Praia', 
+                                'Passeio São Miguel - Camurupim': 'Passeio à São Miguel do Gostoso', 'Passeio Maracajau com Lancha - Camurupim': 'Passeio à Maracajaú', 
+                                'Passeio Genipabu - Camurupim': 'Passeio à Genipabu'}
+
+    df_ref = df_escalas_pag[df_escalas_pag['Servico'].isin(dict_servicos_duplicados)].reset_index()
+
+    for index in range(len(df_ref)):
+
+        df_ref_2 = df_escalas_pag.loc[(df_escalas_pag['Data da Escala']==df_ref.at[index, 'Data da Escala']) & (df_escalas_pag['Motorista']==df_ref.at[index, 'Motorista']) & 
+                                      (df_escalas_pag['Guia']==df_ref.at[index, 'Guia']) & (df_escalas_pag['Veiculo']==df_ref.at[index, 'Veiculo'])].reset_index()
+        
+        if len(df_ref_2) == 2:
+
+            servico_1 = df_ref_2.at[0, 'Servico']
+
+            servico_2 = df_ref_2.at[1, 'Servico']
+
+            if (servico_1 in dict_servicos_duplicados and dict_servicos_duplicados[servico_1] == servico_2) or \
+                (servico_2 in dict_servicos_duplicados and dict_servicos_duplicados[servico_2] == servico_1):
+
+                if servico_1 in dict_servicos_duplicados:
+
+                    index_to_remove = df_ref_2.at[0, 'index']
+
+                else:
+
+                    index_to_remove = df_ref_2.at[1, 'index']
+
+                df_escalas_pag = df_escalas_pag.drop(index=index_to_remove)
+
+    return df_escalas_pag
+
 st.set_page_config(layout='wide')
 
 with st.spinner('Puxando dados do Phoenix...'):
@@ -470,10 +555,14 @@ if gerar_mapa:
 
     df_escalas['Total ADT | CHD'] = df_escalas['Total ADT'] + df_escalas['Total CHD']
 
+    # Forçando idioma espanhol no voo 'G3 - 7465'
+
+    df_escalas.loc[df_escalas['Voo']=='G3 - 7465', 'Idioma'] = 'es-es'
+
     # Agrupando escalas
 
     df_escalas_group = df_escalas.groupby(['Data da Escala', 'Escala', 'Veiculo', 'Motorista', 'Guia', 'Servico', 'Tipo de Servico', 'Modo'])\
-        .agg({'Apoio': 'first',  'Idioma': transformar_em_listas, 'Total ADT | CHD': 'sum', 'Horario Voo': transformar_em_listas, 'Data | Horario Apresentacao': 'min'}).reset_index()
+        .agg({'Apoio': transformar_em_string,  'Idioma': transformar_em_listas, 'Total ADT | CHD': 'sum', 'Horario Voo': transformar_em_listas, 'Data | Horario Apresentacao': 'min'}).reset_index()
     
     # Tratando coluna Idioma
 
@@ -526,6 +615,10 @@ if gerar_mapa:
     # Ajustando pagamentos de DIDI e RODRIGO SALES
 
     df_escalas_pag.loc[(df_escalas_pag['Guia']=='DIDI') | (df_escalas_pag['Guia']=='RODRIGO SALES'), 'Valor Total'] = df_escalas_pag['Valor Serviço'] * 0.5
+
+    # Ajustando passeios que precisam ser escalados em escalas diferentes, mas deveriam ser na mesma
+
+    df_escalas_pag = ajuste_passeios_escalas_diferentes(df_escalas_pag)
 
     st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Modo', 'Tipo de Servico', 'Servico', 'Veiculo', 'Motorista', 'Guia', 'Idioma', 'Adicional Passeio Motoguia', 
                                                       'Adicional Motoguia Após 20:00', 'Adicional Diária Motoguia TRF|APOIO', 'Valor Serviço', 'Valor Total']]
@@ -642,6 +735,60 @@ if 'df_pag_final' in st.session_state:
                         html_content_guia_ref = file.read()
 
                     lista_htmls.append([html_content_guia_ref, telefone_guia])
+
+                webhook_thiago = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
+
+                payload = {"informe_html": lista_htmls}
+                
+                response = requests.post(webhook_thiago, json=payload)
+                    
+                if response.status_code == 200:
+                    
+                    st.success(f"Mapas de Pagamentos enviados com sucesso!")
+                    
+                else:
+                    
+                    st.error(f"Erro. Favor contactar o suporte")
+
+                    st.error(f"{response}")
+
+        with row2_1[1]:
+
+            enviar_informes_financeiro = st.button('Enviar Informes p/ Financeiro')
+
+            if enviar_informes_financeiro:
+
+                lista_htmls = []
+
+                lista_telefones = []
+
+                for guia_ref in lista_guias:
+
+                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Guia']==guia_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
+
+                    df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
+
+                    df_pag_guia['Data da Escala'] = df_pag_guia['Data da Escala'].dt.strftime('%d/%m/%Y')
+
+                    soma_servicos = df_pag_guia['Valor Total'].sum()
+
+                    soma_servicos = format_currency(soma_servicos, 'BRL', locale='pt_BR')
+
+                    for item in ['Adicional Passeio Motoguia', 'Adicional Motoguia Após 20:00', 'Adicional Diária Motoguia TRF|APOIO', 'Valor Serviço', 'Valor Total']:
+
+                        df_pag_guia[item] = df_pag_guia[item].apply(lambda x: format_currency(x, 'BRL', locale='pt_BR'))
+
+                    html = definir_html(df_pag_guia)
+
+                    nome_html = f'{guia_ref}.html'
+
+                    criar_output_html(nome_html, html, guia_ref, soma_servicos)
+
+                    with open(nome_html, "r", encoding="utf-8") as file:
+
+                        html_content_guia_ref = file.read()
+
+                    lista_htmls.append([html_content_guia_ref, '84994001644'])
 
                 webhook_thiago = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
 
