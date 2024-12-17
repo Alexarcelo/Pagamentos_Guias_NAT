@@ -405,8 +405,10 @@ if gerar_mapa:
     # Filtrando período solicitado pelo usuário
 
     df_escalas = st.session_state.df_escalas[(st.session_state.df_escalas['Data da Escala'] >= data_inicial) & (st.session_state.df_escalas['Data da Escala'] <= data_final) & 
-                                            (~st.session_state.df_escalas['Veiculo'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist()))))].reset_index(drop=True)
-
+                                            (~st.session_state.df_escalas['Veiculo'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist())))) & 
+                                            (~st.session_state.df_escalas['Servico'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Excluir Servicos'].tolist()))))]\
+                                                .reset_index(drop=True)
+    
     # Tratando nomes de tipos de veículos
 
     df_escalas = tratar_tipos_veiculos(df_escalas)
@@ -438,6 +440,8 @@ if gerar_mapa:
 
     st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Tipo de Servico', 'Servico', 'Fornecedor Motorista', 'Tipo Veiculo', 'Veiculo', 'Servico Conjugado', 'Valor Final']]
 
+    st.session_state.df_pag_final['Valor Final'] = st.session_state.df_pag_final['Valor Final'].fillna(0)
+
 if 'df_pag_final' in st.session_state:
 
     st.header('Gerar Mapas')
@@ -448,7 +452,7 @@ if 'df_pag_final' in st.session_state:
 
         lista_fornecedores = st.session_state.df_pag_final['Fornecedor Motorista'].dropna().unique().tolist()
 
-        fornecedor = st.multiselect('Veículos', sorted(lista_fornecedores), default=None)
+        fornecedor = st.multiselect('Fornecedores', sorted(lista_fornecedores), default=None)
 
     if fornecedor:
 
@@ -480,9 +484,9 @@ if 'df_pag_final' in st.session_state:
 
         html = definir_html(df_pag_guia)
 
-        nome_html = f'{fornecedor}.html'
+        nome_html = f"{', '.join(fornecedor)}.html"
 
-        criar_output_html(nome_html, html, fornecedor, soma_servicos)
+        criar_output_html(nome_html, html, nome_html, soma_servicos)
 
         with open(nome_html, "r", encoding="utf-8") as file:
 
