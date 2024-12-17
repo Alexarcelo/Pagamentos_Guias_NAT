@@ -51,10 +51,26 @@ def puxar_dados_phoenix():
 
 def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 
-    nome_credencial = st.secrets["CREDENCIAL_SHEETS"]
-    credentials = service_account.Credentials.from_service_account_info(nome_credencial)
-    scope = ['https://www.googleapis.com/auth/spreadsheets']
-    credentials = credentials.with_scopes(scope)
+    # GCP projeto onde está a chave credencial
+    project_id = "grupoluck"
+
+    # ID da chave credencial do google.
+    secret_id = "cred-luck-aracaju"
+
+    # Cria o cliente.
+    secret_client = secretmanager.SecretManagerServiceClient()
+
+    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = secret_client.access_secret_version(request={"name": secret_name})
+
+    secret_payload = response.payload.data.decode("UTF-8")
+
+    credentials_info = json.loads(secret_payload)
+
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+
+    # Use the credentials to authorize the gspread client
+    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
 
     spreadsheet = client.open_by_key(id_gsheet)
@@ -81,10 +97,26 @@ def puxar_tarifario_fornecedores():
 
 def inserir_config(df_itens_faltantes, id_gsheet, nome_aba):
 
-    nome_credencial = st.secrets["CREDENCIAL_SHEETS"]
-    credentials = service_account.Credentials.from_service_account_info(nome_credencial)
-    scope = ['https://www.googleapis.com/auth/spreadsheets']
-    credentials = credentials.with_scopes(scope)
+    # GCP projeto onde está a chave credencial
+    project_id = "grupoluck"
+
+    # ID da chave credencial do google.
+    secret_id = "cred-luck-aracaju"
+
+    # Cria o cliente.
+    secret_client = secretmanager.SecretManagerServiceClient()
+
+    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = secret_client.access_secret_version(request={"name": secret_name})
+
+    secret_payload = response.payload.data.decode("UTF-8")
+
+    credentials_info = json.loads(secret_payload)
+
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+
+    # Use the credentials to authorize the gspread client
+    credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
     
     spreadsheet = client.open_by_key(id_gsheet)
@@ -127,10 +159,26 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
 
         st.dataframe(df_itens_faltantes, hide_index=True)
 
-        nome_credencial = st.secrets["CREDENCIAL_SHEETS"]
-        credentials = service_account.Credentials.from_service_account_info(nome_credencial)
-        scope = ['https://www.googleapis.com/auth/spreadsheets']
-        credentials = credentials.with_scopes(scope)
+        # GCP projeto onde está a chave credencial
+        project_id = "grupoluck"
+    
+        # ID da chave credencial do google.
+        secret_id = "cred-luck-aracaju"
+    
+        # Cria o cliente.
+        secret_client = secretmanager.SecretManagerServiceClient()
+    
+        secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+        response = secret_client.access_secret_version(request={"name": secret_name})
+    
+        secret_payload = response.payload.data.decode("UTF-8")
+    
+        credentials_info = json.loads(secret_payload)
+    
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    
+        # Use the credentials to authorize the gspread client
+        credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
         client = gspread.authorize(credentials)
         
         spreadsheet = client.open_by_key(id_gsheet)
@@ -250,51 +298,6 @@ def criar_output_html(nome_html, html, guia, soma_servicos):
         file.write(html)
 
         file.write(f'<br><br><p style="font-size:40px;">O valor total dos serviços é {soma_servicos}</p>')
-
-# def criar_colunas_escala_veiculo_mot_guia(df_apoios):
-
-#     df_apoios[['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio']] = ''
-
-#     df_apoios['Apoio'] = df_apoios['Apoio'].str.replace('Escala Auxiliar: ', '', regex=False)
-
-#     df_apoios['Apoio'] = df_apoios['Apoio'].str.replace(' Veículo: ', '', regex=False)
-
-#     df_apoios['Apoio'] = df_apoios['Apoio'].str.replace(' Motorista: ', '', regex=False)
-
-#     df_apoios['Apoio'] = df_apoios['Apoio'].str.replace(' Guia: ', '', regex=False)
-
-#     df_apoios[['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio']] = \
-#         df_apoios['Apoio'].str.split(',', expand=True)
-    
-#     return df_apoios
-
-# def adicionar_apoios_em_dataframe(df_escalas_group):
-
-#     df_escalas_com_apoio = st.session_state.df_escalas[(st.session_state.df_escalas['Data da Escala'] >= data_inicial) & (st.session_state.df_escalas['Data da Escala'] <= data_final) & 
-#                                                        (~pd.isna(st.session_state.df_escalas['Apoio']))].reset_index(drop=True)
-    
-#     df_escalas_com_apoio = tratar_tipos_veiculos(df_escalas_com_apoio)
-
-#     df_escalas_com_apoio = criar_colunas_escala_veiculo_mot_guia(df_escalas_com_apoio)
-
-#     df_escalas_com_apoio = df_escalas_com_apoio[~(df_escalas_com_apoio['Veiculo Apoio'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist()))))]
-
-#     df_escalas_com_apoio
-
-#     st.stop()
-
-#     df_apoios_group = df_escalas_com_apoio.groupby(['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio']).agg({'Data da Escala': 'first', 'Data | Horario Apresentacao': 'first'}).reset_index()
-
-#     df_apoios_group = df_apoios_group.rename(columns={'Veiculo Apoio': 'Veiculo', 'Motorista Apoio': 'Motorista', 'Guia Apoio': 'Guia', 'Escala Apoio': 'Escala'})
-
-#     df_apoios_group = df_apoios_group[['Data da Escala', 'Escala', 'Veiculo', 'Motorista', 'Guia', 'Data | Horario Apresentacao']]
-
-#     df_apoios_group[['Servico', 'Tipo de Servico', 'Modo', 'Apoio', 'Idioma', 'Total ADT | CHD', 'Horario Voo', 'Valor Padrão', 'Valor Espanhol', 'Valor Inglês', 
-#                      'Adicional Passeio Motoguia', 'Adicional Motoguia Após 20:00']] = ['APOIO', 'TRANSFER', 'REGULAR', None, '', 0, time(0,0), 28, 28, 28, 0, 0]
-
-#     df_escalas_pag = pd.concat([df_escalas_group, df_apoios_group], ignore_index=True)
-
-#     return df_escalas_pag
 
 st.set_page_config(layout='wide')
 
@@ -416,10 +419,6 @@ if gerar_mapa:
 
     df_escalas_group = df_escalas.groupby(['Data da Escala', 'Escala', 'Veiculo', 'Tipo Veiculo', 'Servico', 'Tipo de Servico', 'Fornecedor Motorista']).agg({'Horario Voo': 'first', 'Data | Horario Apresentacao': 'min'})\
         .reset_index()
-
-    # Colocando apoios na escala
-
-    # df_escalas_group = adicionar_apoios_em_dataframe(df_escalas_group)
 
     # Verificando se todos os serviços estão tarifados
 
