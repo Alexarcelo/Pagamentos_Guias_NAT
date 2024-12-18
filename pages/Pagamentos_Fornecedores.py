@@ -1,3 +1,15 @@
+import streamlit as st
+import pandas as pd
+import mysql.connector
+import decimal
+from babel.numbers import format_currency
+import gspread 
+import requests
+from datetime import time
+from google.cloud import secretmanager 
+import json
+from google.oauth2.service_account import Credentials
+
 def gerar_df_phoenix(vw_name, base_luck):
 
     # Parametros de Login AWS
