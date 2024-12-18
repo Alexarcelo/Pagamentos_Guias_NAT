@@ -476,7 +476,7 @@ def ajuste_passeios_escalas_diferentes(df_escalas_pag):
 
     dict_servicos_duplicados = {'Passeio Pipa - Camurupim': 'Passeio à Pipa', 'Passeio City Tour - meio período ': 'City Tour com Praia', 
                                 'Passeio São Miguel - Camurupim': 'Passeio à São Miguel do Gostoso', 'Passeio Maracajau com Lancha - Camurupim': 'Passeio à Maracajaú', 
-                                'Passeio Genipabu - Camurupim': 'Passeio à Genipabu'}
+                                'Passeio Genipabu - Camurupim': 'Passeio à Genipabu', 'Passeio à João Pessoa com Bolero (PIPA)': 'Passeio João Pessoa com Bolero'}
 
     df_ref = df_escalas_pag[df_escalas_pag['Servico'].isin(dict_servicos_duplicados)].reset_index()
 
