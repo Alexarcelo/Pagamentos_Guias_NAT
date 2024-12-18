@@ -1,15 +1,3 @@
-import streamlit as st
-import pandas as pd
-import mysql.connector
-import decimal
-from babel.numbers import format_currency
-import gspread 
-import requests
-from datetime import time
-from google.cloud import secretmanager 
-import json
-from google.oauth2.service_account import Credentials
-
 def gerar_df_phoenix(vw_name, base_luck):
 
     # Parametros de Login AWS
@@ -48,7 +36,7 @@ def puxar_dados_phoenix():
     st.session_state.df_escalas_bruto = gerar_df_phoenix('vw_payment_guide', 'test_phoenix_natal')
 
     st.session_state.df_escalas = st.session_state.df_escalas_bruto[~(st.session_state.df_escalas_bruto['Status da Reserva'].isin(['CANCELADO', 'PENDENCIA DE IMPORTAÇÃO'])) & 
-                                                                    ~(pd.isna(st.session_state.df_escalas_bruto['Status da Reserva'])) & ~(pd.isna(st.session_state.df_escalas['Escala']))]\
+                                                                    ~(pd.isna(st.session_state.df_escalas_bruto['Status da Reserva'])) & ~(pd.isna(st.session_state.df_escalas_bruto['Escala']))]\
                                                                         .reset_index(drop=True)
 
 def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
@@ -85,7 +73,7 @@ def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 
 def tratar_colunas_df_tarifario():
 
-    for coluna in ['Bus', 'Micro', 'Van Alongada', 'Van', 'Utilitario', 'Conjugado']:
+    for coluna in ['Bus', 'Micro', 'Van Alongada', 'Van', 'Utilitario', 'Conjugado Bus', 'Conjugado Micro', 'Conjugado Van Alongada', 'Conjugado Van', 'Conjugado Utilitario']:
 
         st.session_state.df_tarifario[coluna] = (st.session_state.df_tarifario[coluna].str.replace('.', '', regex=False).str.replace(',', '.', regex=False))
 
@@ -196,6 +184,8 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
 
         st.error('Os serviços acima não estão tarifados. Eles foram inseridos no final da planilha de tarifários. Por favor, tarife os serviços e tente novamente')
 
+        st.stop()
+
     else:
 
         st.success('Todos os serviços estão tarifados!')
@@ -301,6 +291,143 @@ def criar_output_html(nome_html, html, guia, soma_servicos):
 
         file.write(f'<br><br><p style="font-size:40px;">O valor total dos serviços é {soma_servicos}</p>')
 
+def criar_colunas_escala_veiculo_mot_guia(df_apoios):
+
+    df_apoios[['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio']] = ''
+
+    df_apoios['Apoio'] = df_apoios['Apoio'].str.replace('Escala Auxiliar: ', '', regex=False)
+
+    df_apoios['Apoio'] = df_apoios['Apoio'].str.replace(' Veículo: ', '', regex=False)
+
+    df_apoios['Apoio'] = df_apoios['Apoio'].str.replace(' Motorista: ', '', regex=False)
+
+    df_apoios['Apoio'] = df_apoios['Apoio'].str.replace(' Guia: ', '', regex=False)
+
+    df_apoios[['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio']] = \
+        df_apoios['Apoio'].str.split(',', expand=True)
+    
+    return df_apoios
+
+def transformar_em_string(apoio):
+
+    return ', '.join(list(set(apoio.dropna())))
+
+def adicionar_apoios_em_dataframe(df_escalas_group):
+
+    df_escalas_com_apoio = st.session_state.df_escalas[(st.session_state.df_escalas['Data da Escala'] >= data_inicial) & (st.session_state.df_escalas['Data da Escala'] <= data_final) & 
+                                                       (~pd.isna(st.session_state.df_escalas['Apoio']))].reset_index(drop=True)
+    
+    df_escalas_com_apoio = df_escalas_com_apoio.groupby(['Data da Escala', 'Escala', 'Veiculo', 'Tipo Veiculo', 'Motorista', 'Servico', 'Tipo de Servico', 'Fornecedor Motorista'])\
+        .agg({'Apoio': transformar_em_string, 'Horario Voo': 'first', 'Data | Horario Apresentacao': 'min'}).reset_index()
+    
+    df_escalas_com_1_apoio = df_escalas_com_apoio[(df_escalas_com_apoio['Apoio']!='') & (~df_escalas_com_apoio['Apoio'].str.contains(r' \| ', regex=True))].reset_index(drop=True)
+
+    df_escalas_com_1_apoio = criar_colunas_escala_veiculo_mot_guia(df_escalas_com_1_apoio)
+
+    df_escalas_com_1_apoio = df_escalas_com_1_apoio[~(df_escalas_com_1_apoio['Veiculo Apoio'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist()))))]
+
+    df_apoios_group = df_escalas_com_1_apoio.groupby(['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio']).agg({'Data da Escala': 'first', 'Data | Horario Apresentacao': 'first'}).reset_index()
+
+    df_apoios_group = df_apoios_group.rename(columns={'Veiculo Apoio': 'Veiculo', 'Motorista Apoio': 'Motorista', 'Guia Apoio': 'Guia', 'Escala Apoio': 'Escala'})
+
+    df_apoios_group = df_apoios_group[['Data da Escala', 'Escala', 'Veiculo', 'Motorista', 'Guia', 'Data | Horario Apresentacao']]
+
+    df_apoios_group = df_apoios_group[(~df_apoios_group['Veiculo'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist()))))].reset_index(drop=True)
+
+    df_veiculo_tp_veiculo = st.session_state.df_escalas[(st.session_state.df_escalas['Veiculo'].isin(df_apoios_group['Veiculo'].unique())) & 
+                                                        (~st.session_state.df_escalas['Fornecedor Motorista'].dropna().str.upper().str.contains('DUPLICIDADE'))]\
+                                                            [['Veiculo', 'Tipo Veiculo', 'Fornecedor Motorista']].drop_duplicates()
+
+    df_apoios_group = pd.merge(df_apoios_group[['Data da Escala', 'Escala', 'Veiculo', 'Data | Horario Apresentacao']], df_veiculo_tp_veiculo, on='Veiculo', how='left')
+
+    df_apoios_group[['Servico', 'Tipo de Servico', 'Horario Voo']] = ['APOIO', 'TRANSFER', None]
+
+    df_escalas_pag = pd.concat([df_escalas_group, df_apoios_group], ignore_index=True)
+
+    df_escalas_com_2_apoios = df_escalas_com_apoio[(df_escalas_com_apoio['Apoio']!='') & (df_escalas_com_apoio['Apoio'].str.contains(r' \| ', regex=True))].reset_index(drop=True)
+
+    df_novo = pd.DataFrame(columns=['Escala', 'Veiculo', 'Data | Horario Apresentacao', 'Data da Escala'])
+
+    for index in range(len(df_escalas_com_2_apoios)):
+
+        data_escala = df_escalas_com_2_apoios.at[index, 'Data da Escala']
+
+        apoio_nome = df_escalas_com_2_apoios.at[index, 'Apoio']
+
+        data_h_apr = df_escalas_com_2_apoios.at[index, 'Data | Horario Apresentacao']
+
+        lista_apoios = apoio_nome.split(' | ')
+
+        for item in lista_apoios:
+
+            dict_replace = {'Escala Auxiliar: ': '', ' Veículo: ': '', ' Motorista: ': '', ' Guia: ': ''}
+
+            for old, new in dict_replace.items():
+
+                item = item.replace(old, new)
+                
+            lista_insercao = item.split(',')
+
+            contador = len(df_novo)
+
+            df_novo.at[contador, 'Escala'] = lista_insercao[0]
+
+            df_novo.at[contador, 'Veiculo'] = lista_insercao[1]
+
+            df_novo.at[contador, 'Data | Horario Apresentacao'] = data_h_apr
+
+            df_novo.at[contador, 'Data da Escala'] = data_escala
+
+    df_novo = df_novo[(~df_novo['Veiculo'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist()))))].reset_index(drop=True)
+
+    df_veiculo_tp_veiculo = st.session_state.df_escalas[(st.session_state.df_escalas['Veiculo'].isin(df_novo['Veiculo'].unique())) & 
+                                                        (~st.session_state.df_escalas['Fornecedor Motorista'].dropna().str.upper().str.contains('DUPLICIDADE'))]\
+                                                            [['Veiculo', 'Tipo Veiculo', 'Fornecedor Motorista']].drop_duplicates()
+
+    df_novo = pd.merge(df_novo[['Data da Escala', 'Escala', 'Veiculo', 'Data | Horario Apresentacao']], df_veiculo_tp_veiculo, on='Veiculo', how='left')
+
+    df_novo[['Servico', 'Tipo de Servico', 'Horario Voo']] = ['APOIO', 'TRANSFER', None]
+
+    df_escalas_pag = pd.concat([df_escalas_pag, df_novo], ignore_index=True)
+
+    return df_escalas_pag
+
+def precificar_apoios_2_em_1(df_escalas_pag):
+    
+    df_apoios = df_escalas_pag[df_escalas_pag['Servico']=='APOIO'].reset_index()
+
+    df_apoios_group = df_apoios.groupby(['Data da Escala', 'Veiculo'])['Escala'].count().reset_index()
+
+    df_apoios_2_em_1 = df_apoios_group[df_apoios_group['Escala']==2].reset_index()
+
+    for index in range(len(df_apoios_2_em_1)):
+
+        data_ref = df_apoios_2_em_1.at[index, 'Data da Escala']
+
+        veiculo = df_apoios_2_em_1.at[index, 'Veiculo']
+
+        df_ref = df_apoios[(df_apoios['Data da Escala']==data_ref) & (df_apoios['Veiculo']==veiculo)].reset_index(drop=True)
+
+        escala_ref = df_ref['Escala'].iloc[0]
+
+        df_escalas_pag.loc[df_escalas_pag['Escala']==escala_ref, 'Valor Final']=0
+
+    df_apoios_3_ou_mais = df_apoios_group[df_apoios_group['Escala']>2].reset_index()
+
+    for index in range(len(df_apoios_3_ou_mais)):
+
+        data_ref = df_apoios_3_ou_mais.at[index, 'Data da Escala']
+
+        veiculo = df_apoios_3_ou_mais.at[index, 'Veiculo']
+
+        df_ref = df_apoios[(df_apoios['Data da Escala']==data_ref) & (df_apoios['Veiculo']==veiculo)].reset_index(drop=True)
+
+        escalas_ref = df_ref.loc[2:, 'Escala']
+
+        df_escalas_pag.loc[df_escalas_pag['Escala'].isin(escalas_ref), 'Valor Final'] = 0
+
+    return df_escalas_pag
+
 st.set_page_config(layout='wide')
 
 if not 'mostrar_config' in st.session_state:
@@ -313,9 +440,9 @@ if not 'df_config' in st.session_state:
 
         puxar_aba_simples('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', 'Configurações Fornecedores', 'df_config')
 
-with st.spinner('Puxando dados do Phoenix...'):
+if not 'df_escalas' in st.session_state:
 
-    if not 'df_escalas' in st.session_state:
+    with st.spinner('Puxando dados do Phoenix...'):
 
         puxar_dados_phoenix()
 
@@ -343,12 +470,17 @@ if st.session_state.mostrar_config == True:
 
     with row01[0]:
 
-        container_frota = st.container(height=300)
+        st.subheader('Excluir Veículos')
 
-        container_frota.subheader('Excluir Veículos')
+        container_frota = st.container(height=300)
 
         filtrar_frota = container_frota.multiselect('', sorted(st.session_state.df_escalas_bruto['Veiculo'].dropna().unique().tolist()), key='filtrar_frota', 
                                        default=sorted(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist()))))
+        
+        st.subheader('Excluir Serviços')
+        
+        filtrar_servicos = st.multiselect('', sorted(st.session_state.df_escalas_bruto['Servico'].dropna().unique().tolist()), key='filtrar_servicos', 
+                                          default=sorted(list(filter(lambda x: x != '', st.session_state.df_config['Excluir Servicos'].tolist()))))
 
     salvar_config = st.button('Salvar Configurações')
 
@@ -356,7 +488,7 @@ if st.session_state.mostrar_config == True:
 
         with st.spinner('Salvando Configurações...'):
 
-            lista_escolhas = [filtrar_frota]
+            lista_escolhas = [filtrar_frota, filtrar_servicos]
 
             st.session_state.df_config = pd.DataFrame({f'Coluna{i+1}': pd.Series(lista) for i, lista in enumerate(lista_escolhas)})
 
@@ -407,10 +539,10 @@ if gerar_mapa:
     # Filtrando período solicitado pelo usuário
 
     df_escalas = st.session_state.df_escalas[(st.session_state.df_escalas['Data da Escala'] >= data_inicial) & (st.session_state.df_escalas['Data da Escala'] <= data_final) & 
-                                            (~st.session_state.df_escalas['Veiculo'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist())))) & 
-                                            (~st.session_state.df_escalas['Servico'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Excluir Servicos'].tolist()))))]\
+                                             (~st.session_state.df_escalas['Veiculo'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist())))) & 
+                                             (~st.session_state.df_escalas['Servico'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Excluir Servicos'].tolist()))))]\
                                                 .reset_index(drop=True)
-    
+
     # Tratando nomes de tipos de veículos
 
     df_escalas = tratar_tipos_veiculos(df_escalas)
@@ -421,8 +553,12 @@ if gerar_mapa:
 
     # Agrupando escalas
 
-    df_escalas_group = df_escalas.groupby(['Data da Escala', 'Escala', 'Veiculo', 'Tipo Veiculo', 'Servico', 'Tipo de Servico', 'Fornecedor Motorista']).agg({'Horario Voo': 'first', 'Data | Horario Apresentacao': 'min'})\
-        .reset_index()
+    df_escalas_group = df_escalas.groupby(['Data da Escala', 'Escala', 'Veiculo', 'Tipo Veiculo', 'Servico', 'Tipo de Servico', 'Fornecedor Motorista'])\
+        .agg({'Horario Voo': 'first', 'Data | Horario Apresentacao': 'min'}).reset_index()
+    
+    # Adicionando apoios no dataframe
+    
+    df_escalas_group = adicionar_apoios_em_dataframe(df_escalas_group)
 
     # Verificando se todos os serviços estão tarifados
 
@@ -438,7 +574,13 @@ if gerar_mapa:
 
     # Gerando coluna valor levando em conta o tipo de veículo usado
 
-    df_escalas_pag['Valor Final'] = df_escalas_pag.apply(lambda row: row[row['Tipo Veiculo']] if row['Tipo Veiculo'] in df_escalas_pag.columns else None, axis=1)
+    df_escalas_pag['Valor Final'] = df_escalas_pag.apply(
+        lambda row: row[f"Conjugado {row['Tipo Veiculo']}"] if row['Servico Conjugado'] == 'X' and f"Conjugado {row['Tipo Veiculo']}" in df_escalas_pag.columns 
+        else row[row['Tipo Veiculo']] if row['Tipo Veiculo'] in df_escalas_pag.columns else None, axis=1)
+    
+    # Precificando 2 apoios como 1 só ou mais de 2 apoios com 2
+
+    df_escalas_pag = precificar_apoios_2_em_1(df_escalas_pag)
 
     st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Tipo de Servico', 'Servico', 'Fornecedor Motorista', 'Tipo Veiculo', 'Veiculo', 'Servico Conjugado', 'Valor Final']]
 
