@@ -156,6 +156,8 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
 
         st.error('Os serviços acima não estão tarifados. Eles foram inseridos no final da planilha de tarifários. Por favor, tarife os serviços e tente novamente')
 
+        st.stop()
+
     else:
 
         st.success('Todos os serviços estão tarifados!')
