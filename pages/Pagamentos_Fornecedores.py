@@ -402,6 +402,8 @@ def adicionar_apoios_em_dataframe(df_escalas_group):
 
     df_escalas_pag = pd.concat([df_escalas_pag, df_novo], ignore_index=True)
 
+    df_escalas_pag =  tratar_tipos_veiculos(df_escalas_pag)
+
     return df_escalas_pag
 
 def precificar_apoios_2_em_1(df_escalas_pag):
