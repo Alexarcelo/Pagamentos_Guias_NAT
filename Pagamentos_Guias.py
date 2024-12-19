@@ -23,7 +23,7 @@ def gerar_df_phoenix(vw_name, base_luck):
     conexao = mysql.connector.connect(**config)
     cursor = conexao.cursor()
 
-    request_name = f'SELECT `Data | Horario Apresentacao`, `Data da Escala`, `Status da Reserva`, `Escala`, `Motorista`, `Guia`, `Idioma`, `Servico`, `Tipo de Servico`, `Total ADT`, `Total CHD`, `Modo`, `Veiculo`, `Tipo Veiculo`, `Apoio`, `Est. Origem`, `Horario Voo`, `Voo` FROM {vw_name}'
+    request_name = f'SELECT * FROM {vw_name}'
 
     # Script MySql para requests
     cursor.execute(
@@ -45,33 +45,25 @@ def gerar_df_phoenix(vw_name, base_luck):
 
 def puxar_dados_phoenix():
 
-    st.session_state.df_escalas = gerar_df_phoenix('vw_payment_guide', 'test_phoenix_natal')
+    st.session_state.df_escalas_bruto = gerar_df_phoenix('vw_pagamento_guias', 'test_phoenix_natal')
 
-    st.session_state.df_escalas = st.session_state.df_escalas[~(st.session_state.df_escalas['Status da Reserva'].isin(['CANCELADO', 'PENDENCIA DE IMPORTAÇÃO'])) & 
-                                                              ~(pd.isna(st.session_state.df_escalas['Status da Reserva'])) & ~(pd.isna(st.session_state.df_escalas['Escala'])) & 
-                                                              ~(pd.isna(st.session_state.df_escalas['Guia']))].reset_index(drop=True)
+    st.session_state.df_escalas = st.session_state.df_escalas_bruto[~(st.session_state.df_escalas_bruto['Status da Reserva'].isin(['CANCELADO', 'PENDENCIA DE IMPORTAÇÃO'])) & 
+                                                              ~(pd.isna(st.session_state.df_escalas_bruto['Status da Reserva'])) & ~(pd.isna(st.session_state.df_escalas_bruto['Escala'])) & 
+                                                              ~(pd.isna(st.session_state.df_escalas_bruto['Guia']))].reset_index(drop=True)
+    
+    st.session_state.df_cnpj_fornecedores = st.session_state.df_escalas_bruto[~pd.isna(st.session_state.df_escalas_bruto['Guia'])]\
+        [['Guia', 'CNPJ/CPF Fornecedor Guia', 'Razao Social/Nome Completo Fornecedor Guia']].drop_duplicates().reset_index(drop=True)
 
 def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 
-    # GCP projeto onde está a chave credencial
     project_id = "grupoluck"
-
-    # ID da chave credencial do google.
     secret_id = "cred-luck-aracaju"
-
-    # Cria o cliente.
     secret_client = secretmanager.SecretManagerServiceClient()
-
     secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     response = secret_client.access_secret_version(request={"name": secret_name})
-
     secret_payload = response.payload.data.decode("UTF-8")
-
     credentials_info = json.loads(secret_payload)
-
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-
-    # Use the credentials to authorize the gspread client
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
 
@@ -121,25 +113,14 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
 
         st.dataframe(df_itens_faltantes, hide_index=True)
 
-        # GCP projeto onde está a chave credencial
         project_id = "grupoluck"
-    
-        # ID da chave credencial do google.
         secret_id = "cred-luck-aracaju"
-    
-        # Cria o cliente.
         secret_client = secretmanager.SecretManagerServiceClient()
-    
         secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
         response = secret_client.access_secret_version(request={"name": secret_name})
-    
         secret_payload = response.payload.data.decode("UTF-8")
-    
         credentials_info = json.loads(secret_payload)
-    
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    
-        # Use the credentials to authorize the gspread client
         credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
         client = gspread.authorize(credentials)
         
@@ -411,11 +392,19 @@ def criar_output_html(nome_html, html, guia, soma_servicos):
 
     with open(nome_html, "w", encoding="utf-8") as file:
 
-        file.write(f'<p style="font-size:40px;">{guia}</p><br><br>')
+        file.write(f'<p style="font-size:40px;">{guia}</p>')
+
+        file.write(f'<p style="font-size:30px;">Serviços prestados entre {st.session_state.data_inicial.strftime("%d/%m/%Y")} e {st.session_state.data_final.strftime("%d/%m/%Y")}</p>')
+
+        file.write(f'<p style="font-size:30px;">CPF / CNPJ: {st.session_state.cnpj}</p>')
+
+        file.write(f'<p style="font-size:30px;">Razão Social / Nome Completo: {st.session_state.razao_social}</p><br><br>')
 
         file.write(html)
 
-        file.write(f'<br><br><p style="font-size:40px;">O valor total dos serviços é {soma_servicos}</p>')
+        file.write(f'<br><br><p style="font-size:30px;">O valor total dos serviços é {soma_servicos}</p>')
+
+        file.write(f'<p style="font-size:30px;">Data de Pagamento: {st.session_state.data_pagamento.strftime("%d/%m/%Y")}</p>')
 
 def verificar_guia_sem_telefone(id_gsheet, guia, lista_guias_com_telefone):
 
@@ -429,25 +418,14 @@ def verificar_guia_sem_telefone(id_gsheet, guia, lista_guias_com_telefone):
 
         st.dataframe(df_itens_faltantes, hide_index=True)
 
-        # GCP projeto onde está a chave credencial
         project_id = "grupoluck"
-    
-        # ID da chave credencial do google.
         secret_id = "cred-luck-aracaju"
-    
-        # Cria o cliente.
         secret_client = secretmanager.SecretManagerServiceClient()
-    
         secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
         response = secret_client.access_secret_version(request={"name": secret_name})
-    
         secret_payload = response.payload.data.decode("UTF-8")
-    
         credentials_info = json.loads(secret_payload)
-    
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    
-        # Use the credentials to authorize the gspread client
         credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
         client = gspread.authorize(credentials)
         
@@ -514,6 +492,14 @@ with st.spinner('Puxando dados do Phoenix...'):
 
         puxar_dados_phoenix()
 
+if not 'id_gsheet' in st.session_state:
+
+    st.session_state.id_gsheet = '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI'
+
+if not 'id_webhook' in st.session_state:
+
+    st.session_state.id_webhook = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
+
 st.title('Mapa de Pagamento - Guias')
 
 st.divider()
@@ -536,15 +522,23 @@ with row1[1]:
 
     atualizar_phoenix = st.button('Atualizar Dados Phoenix')
 
+    container_data_pgto = st.container(border=True)
+
+    container_data_pgto.subheader('Data de Pagamento')
+
+    data_pagamento = container_data_pgto.date_input('Data de Pagamento', value=None ,format='DD/MM/YYYY', key='data_pagamento')
+
 if atualizar_phoenix:
 
-    puxar_dados_phoenix()
+    with st.spinner('Puxando dados do Phoenix...'):
+
+        puxar_dados_phoenix()
 
 if gerar_mapa:
 
     # Puxando tarifários e tratando colunas de números
 
-    puxar_aba_simples('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', 'Tarifário Robô', 'df_tarifario')
+    puxar_aba_simples(st.session_state.id_gsheet, 'Tarifário Robô', 'df_tarifario')
 
     st.session_state.df_tarifario[['Valor Padrão', 'Valor Espanhol', 'Valor Inglês']] = st.session_state.df_tarifario[['Valor Padrão', 'Valor Espanhol', 'Valor Inglês']]\
         .apply(pd.to_numeric, errors='coerce')
@@ -572,7 +566,7 @@ if gerar_mapa:
 
     # Verificando se todos os serviços estão tarifados
 
-    verificar_tarifarios(df_escalas_group, '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI')
+    verificar_tarifarios(df_escalas_group, st.session_state.id_gsheet)
 
     # Colocando valores tarifarios
     
@@ -637,7 +631,11 @@ if 'df_pag_final' in st.session_state:
 
         guia = st.selectbox('Guia', sorted(lista_guias), index=None)
 
-    if guia:
+    if guia and data_pagamento and data_inicial and data_final:
+
+        st.session_state.cnpj = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Guia']==guia]['CNPJ/CPF Fornecedor Guia'].iloc[0]
+
+        st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Guia']==guia]['Razao Social/Nome Completo Fornecedor Guia'].iloc[0]
 
         row2_1 = st.columns(4)
 
@@ -702,7 +700,7 @@ if 'df_pag_final' in st.session_state:
 
             if enviar_informes:
 
-                puxar_aba_simples('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', 'Telefones Guias', 'df_telefones')
+                puxar_aba_simples(st.session_state.id_gsheet, 'Telefones Guias', 'df_telefones')
 
                 lista_htmls = []
 
@@ -710,7 +708,11 @@ if 'df_pag_final' in st.session_state:
 
                 for guia_ref in lista_guias:
 
-                    telefone_guia = verificar_guia_sem_telefone('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', guia_ref, st.session_state.df_telefones['Guias'].unique().tolist())
+                    st.session_state.cnpj = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Guia']==guia_ref]['CNPJ/CPF Fornecedor Guia'].iloc[0]
+
+                    st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Guia']==guia_ref]['Razao Social/Nome Completo Fornecedor Guia'].iloc[0]
+
+                    telefone_guia = verificar_guia_sem_telefone(st.session_state.id_gsheet, guia_ref, st.session_state.df_telefones['Guias'].unique().tolist())
 
                     df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Guia']==guia_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
 
@@ -738,7 +740,7 @@ if 'df_pag_final' in st.session_state:
 
                     lista_htmls.append([html_content_guia_ref, telefone_guia])
 
-                webhook_thiago = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
+                webhook_thiago = st.session_state.id_webhook
 
                 payload = {"informe_html": lista_htmls}
                 
@@ -766,6 +768,10 @@ if 'df_pag_final' in st.session_state:
 
                 for guia_ref in lista_guias:
 
+                    st.session_state.cnpj = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Guia']==guia_ref]['CNPJ/CPF Fornecedor Guia'].iloc[0]
+
+                    st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Guia']==guia_ref]['Razao Social/Nome Completo Fornecedor Guia'].iloc[0]
+
                     df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Guia']==guia_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
@@ -792,7 +798,7 @@ if 'df_pag_final' in st.session_state:
 
                     lista_htmls.append([html_content_guia_ref, '84994001644'])
 
-                webhook_thiago = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
+                webhook_thiago = st.session_state.id_webhook
 
                 payload = {"informe_html": lista_htmls}
                 
@@ -816,11 +822,11 @@ if 'html_content' in st.session_state and guia:
 
     if enviar_informes:
 
-        puxar_aba_simples('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', 'Telefones Guias', 'df_telefones')
+        puxar_aba_simples(st.session_state.id_gsheet, 'Telefones Guias', 'df_telefones')
 
-        telefone_guia = verificar_guia_sem_telefone('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', guia, st.session_state.df_telefones['Guias'].unique().tolist())
+        telefone_guia = verificar_guia_sem_telefone(st.session_state.id_gsheet, guia, st.session_state.df_telefones['Guias'].unique().tolist())
 
-        webhook_thiago = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
+        webhook_thiago = st.session_state.id_webhook
         
         payload = {"informe_html": st.session_state.html_content, 
                     "telefone": telefone_guia}
