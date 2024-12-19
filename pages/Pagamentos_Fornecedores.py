@@ -45,33 +45,25 @@ def gerar_df_phoenix(vw_name, base_luck):
 
 def puxar_dados_phoenix():
 
-    st.session_state.df_escalas_bruto = gerar_df_phoenix('vw_payment_guide', 'test_phoenix_natal')
+    st.session_state.df_escalas_bruto = gerar_df_phoenix('vw_pagamento_fornecedores', 'test_phoenix_natal')
 
     st.session_state.df_escalas = st.session_state.df_escalas_bruto[~(st.session_state.df_escalas_bruto['Status da Reserva'].isin(['CANCELADO', 'PENDENCIA DE IMPORTAÇÃO'])) & 
                                                                     ~(pd.isna(st.session_state.df_escalas_bruto['Status da Reserva'])) & ~(pd.isna(st.session_state.df_escalas_bruto['Escala']))]\
                                                                         .reset_index(drop=True)
+    
+    st.session_state.df_cnpj_fornecedores = st.session_state.df_escalas_bruto[~pd.isna(st.session_state.df_escalas_bruto['Fornecedor Motorista'])]\
+        [['Fornecedor Motorista', 'CNPJ/CPF Fornecedor Motorista', 'Razao Social/Nome Completo Fornecedor Motorista']].drop_duplicates().reset_index(drop=True)
 
 def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 
-    # GCP projeto onde está a chave credencial
     project_id = "grupoluck"
-
-    # ID da chave credencial do google.
     secret_id = "cred-luck-aracaju"
-
-    # Cria o cliente.
     secret_client = secretmanager.SecretManagerServiceClient()
-
     secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     response = secret_client.access_secret_version(request={"name": secret_name})
-
     secret_payload = response.payload.data.decode("UTF-8")
-
     credentials_info = json.loads(secret_payload)
-
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-
-    # Use the credentials to authorize the gspread client
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
 
@@ -85,7 +77,9 @@ def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 
 def tratar_colunas_df_tarifario():
 
-    for coluna in ['Bus', 'Micro', 'Van Alongada', 'Van', 'Utilitario', 'Conjugado Bus', 'Conjugado Micro', 'Conjugado Van Alongada', 'Conjugado Van', 'Conjugado Utilitario']:
+    for coluna in ['Bus', 'Micro', 'Van Alongada', 'Van', 'Utilitario', 'Conjugado Bus', 'Conjugado Micro', 'Conjugado Van Alongada', 'Conjugado Van', 'Conjugado Utilitario', 
+                   'Bus Terra Dourada', 'Micro Terra Dourada', 'Van Alongada Terra Dourada', 'Van Terra Dourada', 'Conjugado Bus Terra Dourada', 'Conjugado Micro Terra Dourada', 
+                   'Conjugado Van Alongada Terra Dourada', 'Conjugado Van Terra Dourada']:
 
         st.session_state.df_tarifario[coluna] = (st.session_state.df_tarifario[coluna].str.replace('.', '', regex=False).str.replace(',', '.', regex=False))
 
@@ -99,25 +93,14 @@ def puxar_tarifario_fornecedores():
 
 def inserir_config(df_itens_faltantes, id_gsheet, nome_aba):
 
-    # GCP projeto onde está a chave credencial
     project_id = "grupoluck"
-
-    # ID da chave credencial do google.
     secret_id = "cred-luck-aracaju"
-
-    # Cria o cliente.
     secret_client = secretmanager.SecretManagerServiceClient()
-
     secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     response = secret_client.access_secret_version(request={"name": secret_name})
-
     secret_payload = response.payload.data.decode("UTF-8")
-
     credentials_info = json.loads(secret_payload)
-
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-
-    # Use the credentials to authorize the gspread client
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
     
@@ -161,25 +144,14 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
 
         st.dataframe(df_itens_faltantes, hide_index=True)
 
-        # GCP projeto onde está a chave credencial
         project_id = "grupoluck"
-    
-        # ID da chave credencial do google.
         secret_id = "cred-luck-aracaju"
-    
-        # Cria o cliente.
         secret_client = secretmanager.SecretManagerServiceClient()
-    
         secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
         response = secret_client.access_secret_version(request={"name": secret_name})
-    
         secret_payload = response.payload.data.decode("UTF-8")
-    
         credentials_info = json.loads(secret_payload)
-    
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    
-        # Use the credentials to authorize the gspread client
         credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
         client = gspread.authorize(credentials)
         
@@ -197,10 +169,6 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
         st.error('Os serviços acima não estão tarifados. Eles foram inseridos no final da planilha de tarifários. Por favor, tarife os serviços e tente novamente')
 
         st.stop()
-
-    else:
-
-        st.success('Todos os serviços estão tarifados!')
 
 def map_regiao(servico):
 
@@ -243,17 +211,44 @@ def identificar_trf_conjugados(df_escalas_pag):
 
                     segundo_trf = df_ref.at[index, 'Tipo de Servico']
 
+                    hora_voo_out_nat = pd.to_datetime(df_ref.at[index-1, 'Data | Horario Apresentacao'])
+
+                    data_hora_voo_out_nat = hora_voo_out_nat.date()
+
+                    hora_voo_in_nat = pd.to_datetime(df_ref.at[index, 'Horario Voo'], format='%H:%M:%S').replace(year=data_hora_voo_out_nat.year, month=data_hora_voo_out_nat.month, 
+                                                                                                                day=data_hora_voo_out_nat.day)
+                    
+                    hora_voo_out_outros = pd.to_datetime(df_ref.at[index, 'Data | Horario Apresentacao'])
+
+                    data_hora_voo_out_outros = hora_voo_out_outros.date()
+
+                    hora_voo_in_outros = pd.to_datetime(df_ref.at[index-1, 'Horario Voo'], format='%H:%M:%S').replace(year=data_hora_voo_out_outros.year, month=data_hora_voo_out_outros.month, 
+                                                                                                                      day=data_hora_voo_out_outros.day)
+                    
+                    hora_voo_out_outros_2 = pd.to_datetime(df_ref.at[index-1, 'Data | Horario Apresentacao'])
+
+                    data_hora_voo_out_outros_2 = hora_voo_out_outros_2.date()
+
+                    hora_voo_in_outros_2 = pd.to_datetime(df_ref.at[index, 'Horario Voo'], format='%H:%M:%S').replace(year=data_hora_voo_out_outros_2.year, month=data_hora_voo_out_outros_2.month, 
+                                                                                                                    day=data_hora_voo_out_outros_2.day)
+
                     index_1 = df_ref.at[index-1, 'index']
 
                     index_2 = df_ref.at[index, 'index']
 
-                    if regiao=='Natal' and ((primeiro_trf=='OUT') and (segundo_trf=='IN')):
+                    if regiao=='Natal' and ((primeiro_trf=='OUT') and (segundo_trf=='IN')) and (hora_voo_in_nat - hora_voo_out_nat <= timedelta(hours=2, minutes=30)):
 
                         df_escalas_pag.at[index_1, 'Servico Conjugado'] = 'X'
 
                         df_escalas_pag.at[index_2, 'Servico Conjugado'] = 'X'
 
-                    elif regiao!='Natal' and ((primeiro_trf=='IN') and (segundo_trf=='OUT')):
+                    elif regiao!='Natal' and ((primeiro_trf=='IN') and (segundo_trf=='OUT')) and (hora_voo_out_outros - hora_voo_in_outros <= timedelta(hours=4)):
+
+                        df_escalas_pag.at[index_1, 'Servico Conjugado'] = 'X'
+
+                        df_escalas_pag.at[index_2, 'Servico Conjugado'] = 'X'
+
+                    elif regiao!='Natal' and ((primeiro_trf=='OUT') and (segundo_trf=='IN')) and (hora_voo_in_outros_2 - hora_voo_out_outros_2 <= timedelta(hours=3, minutes=40)):
 
                         df_escalas_pag.at[index_1, 'Servico Conjugado'] = 'X'
 
@@ -297,11 +292,19 @@ def criar_output_html(nome_html, html, guia, soma_servicos):
 
     with open(nome_html, "w", encoding="utf-8") as file:
 
-        file.write(f'<p style="font-size:40px;">{guia}</p><br><br>')
+        file.write(f'<p style="font-size:40px;">{guia}</p>')
+
+        file.write(f'<p style="font-size:30px;">Serviços prestados entre {st.session_state.data_inicial.strftime("%d/%m/%Y")} e {st.session_state.data_final.strftime("%d/%m/%Y")}</p>')
+
+        file.write(f'<p style="font-size:30px;">CPF / CNPJ: {st.session_state.cnpj}</p>')
+
+        file.write(f'<p style="font-size:30px;">Razão Social / Nome Completo: {st.session_state.razao_social}</p><br><br>')
 
         file.write(html)
 
-        file.write(f'<br><br><p style="font-size:40px;">O valor total dos serviços é {soma_servicos}</p>')
+        file.write(f'<br><br><p style="font-size:30px;">O valor total dos serviços é {soma_servicos}</p>')
+
+        file.write(f'<p style="font-size:30px;">Data de Pagamento: {st.session_state.data_pagamento.strftime("%d/%m/%Y")}</p>')
 
 def criar_colunas_escala_veiculo_mot_guia(df_apoios):
 
@@ -442,7 +445,136 @@ def precificar_apoios_2_em_1(df_escalas_pag):
 
     return df_escalas_pag
 
+def ajustar_valor_luiz_damiao_pipa(df_escalas_pag):
+
+    df_escalas_damiao_luiz = df_escalas_pag[(df_escalas_pag['Fornecedor Motorista'].isin(['DAMIAO PIPA', 'LUIZ ANTONIO'])) & (df_escalas_pag['Servico']=='APOIO')].reset_index()
+
+    for escala in df_escalas_damiao_luiz['Escala'].unique():
+
+        df_ref = st.session_state.df_escalas[(~pd.isna(st.session_state.df_escalas['Apoio'])) & (st.session_state.df_escalas['Apoio'].str.contains(escala))].reset_index()
+
+        total_paxs = df_ref['Total ADT'].sum() + df_ref['Total CHD'].sum()
+
+        df_escalas_pag.loc[df_escalas_pag['Escala']==escala, 'Valor Final'] = ((total_paxs + 3) // 4) * 20
+
+    return df_escalas_pag
+
+def verificar_fornecedor_sem_telefone(id_gsheet, guia, lista_guias_com_telefone):
+
+    if not guia in lista_guias_com_telefone:
+
+        lista_guias = []
+
+        lista_guias.append(guia)
+
+        df_itens_faltantes = pd.DataFrame(lista_guias, columns=['Guias'])
+
+        st.dataframe(df_itens_faltantes, hide_index=True)
+
+        project_id = "grupoluck"
+        secret_id = "cred-luck-aracaju"
+        secret_client = secretmanager.SecretManagerServiceClient()
+        secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+        response = secret_client.access_secret_version(request={"name": secret_name})
+        secret_payload = response.payload.data.decode("UTF-8")
+        credentials_info = json.loads(secret_payload)
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
+        client = gspread.authorize(credentials)
+        
+        spreadsheet = client.open_by_key(id_gsheet)
+
+        sheet = spreadsheet.worksheet('Telefones Guias')
+        sheet_data = sheet.get_all_values()
+        last_filled_row = len(sheet_data)
+        data = df_itens_faltantes.values.tolist()
+        start_row = last_filled_row + 1
+        start_cell = f"A{start_row}"
+        
+        sheet.update(start_cell, data)
+
+        st.error(f'O fornecedor {guia} não tem número de telefone cadastrado na planilha. Ele foi inserido no final da lista de fornecedores. Por favor, cadastre o telefone dele e tente novamente')
+
+        st.stop()
+
+    else:
+
+        telefone_guia = st.session_state.df_telefones.loc[st.session_state.df_telefones['Fornecedores']==guia, 'Telefone'].values[0]
+
+    return telefone_guia
+
+def identificar_trf_htl_conjugados(df_escalas_pag):
+
+    dict_trf_hotel_conjugado = {'TRF  Pipa/Natal': 1, 'TRF Natal/Pipa ': 2, 'TRF Natal/Touros': 3, 'TRF Touros/Natal': 4, 'TRF Natal/São Miguel': 5, 'TRF São Miguel/Natal': 6}
+
+    lista_servicos = ['TRF  Pipa/Natal', 'TRF Natal/Pipa ', 'TRF Natal/Touros', 'TRF Touros/Natal', 'TRF Natal/São Miguel', 'TRF São Miguel/Natal']
+
+    df_in_out = df_escalas_pag[df_escalas_pag['Servico'].isin(lista_servicos)].reset_index()
+
+    df_in_out['Ajuste'] = df_in_out['Servico'].map(dict_trf_hotel_conjugado)
+
+    df_in_out = df_in_out.sort_values(by=['Data da Escala', 'Fornecedor Motorista', 'Ajuste']).reset_index(drop=True)
+
+    df_data_fornecedor = df_in_out[['Data da Escala', 'Fornecedor Motorista']].drop_duplicates().reset_index()
+
+    for index in range(len(df_data_fornecedor)):
+
+        df_ref = df_in_out[(df_in_out['Data da Escala']==df_data_fornecedor.at[index, 'Data da Escala']) & (df_in_out['Fornecedor Motorista']==df_data_fornecedor.at[index, 'Fornecedor Motorista'])]\
+            .reset_index(drop=True)
+        
+        if len(df_ref)>=2:
+        
+            servico_1 = df_ref.at[0, 'Servico']
+
+            servico_2 = df_ref.at[1, 'Servico']
+
+            df_ref = df_ref.sort_values(by='Data | Horario Apresentacao').reset_index(drop=True)
+
+            hora_1 = df_ref.at[0, 'Data | Horario Apresentacao']
+
+            hora_2 = df_ref.at[1, 'Data | Horario Apresentacao']
+
+            if (servico_1=='TRF  Pipa/Natal' and servico_2=='TRF Natal/Pipa ') or (servico_1=='TRF Natal/Touros' and servico_2=='TRF Touros/Natal'):
+
+                if hora_2 - hora_1 <= timedelta(hours=3, minutes=30):
+
+                    df_escalas_pag.loc[df_escalas_pag.index.isin(df_ref['index']), 'Servico Conjugado'] = 'X'
+
+            elif servico_1=='TRF Natal/São Miguel' and servico_2=='TRF São Miguel/Natal':
+
+                if hora_2 - hora_1 <= timedelta(hours=4):
+
+                    df_escalas_pag.loc[df_escalas_pag.index.isin(df_ref['index']), 'Servico Conjugado'] = 'X'
+
+    return df_escalas_pag
+
+def verificar_tarifarios_terra_dourada(df_escalas_pag):
+    
+    df_escalas_terra_dourada = df_escalas_pag[df_escalas_pag['Fornecedor Motorista']=='TERRA DOURADA'].reset_index(drop=True)
+
+    df_escalas_terra_dourada['Valor Final'] = pd.to_numeric(df_escalas_terra_dourada['Valor Final'])
+
+    if df_escalas_terra_dourada['Valor Final'].isnull().any():
+
+        nome_servicos_sem_tarifario_terra_dourada = ', '.join(df_escalas_terra_dourada[pd.isna(df_escalas_terra_dourada['Valor Final'])]['Servico'].unique().tolist())
+
+        st.error(f'Os serviços {nome_servicos_sem_tarifario_terra_dourada} não estão tarifados para o Fornecedor Terra Dourada. Por favor, tarife-os e tente novamente')
+
+        st.stop()
+
+    else:
+
+        st.success('Todos os serviços estão tarifados!')
+
 st.set_page_config(layout='wide')
+
+if not 'id_gsheet' in st.session_state:
+
+    st.session_state.id_gsheet = '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI'
+
+if not 'id_webhook' in st.session_state:
+
+    st.session_state.id_webhook = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
 
 if not 'mostrar_config' in st.session_state:
 
@@ -452,7 +584,7 @@ if not 'df_config' in st.session_state:
 
     with st.spinner('Puxando configurações...'):
 
-        puxar_aba_simples('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', 'Configurações Fornecedores', 'df_config')
+        puxar_aba_simples(st.session_state.id_gsheet, 'Configurações Fornecedores', 'df_config')
 
 if not 'df_escalas' in st.session_state:
 
@@ -508,9 +640,9 @@ if st.session_state.mostrar_config == True:
 
             st.session_state.df_config = st.session_state.df_config.fillna('')
 
-            inserir_config(st.session_state.df_config, '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', 'Configurações Fornecedores')
+            inserir_config(st.session_state.df_config, st.session_state.id_gsheet, 'Configurações Fornecedores')
 
-            puxar_aba_simples('1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI', 'Configurações Fornecedores', 'df_config')
+            puxar_aba_simples(st.session_state.id_gsheet, 'Configurações Fornecedores', 'df_config')
 
         st.session_state.mostrar_config = False
 
@@ -535,6 +667,12 @@ with row1[0]:
 with row1[1]:
 
     atualizar_phoenix = st.button('Atualizar Dados Phoenix')
+
+    container_data_pgto = st.container(border=True)
+
+    container_data_pgto.subheader('Data de Pagamento')
+
+    data_pagamento = container_data_pgto.date_input('Data de Pagamento', value=None ,format='DD/MM/YYYY', key='data_pagamento')
 
 if atualizar_phoenix:
 
@@ -576,7 +714,7 @@ if gerar_mapa:
 
     # Verificando se todos os serviços estão tarifados
 
-    verificar_tarifarios(df_escalas_group, '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI')
+    verificar_tarifarios(df_escalas_group, st.session_state.id_gsheet)
 
     # Colocando valores tarifarios
         
@@ -586,15 +724,32 @@ if gerar_mapa:
 
     df_escalas_pag = identificar_trf_conjugados(df_escalas_pag)
 
+    # Identificando transfers hotel > hotel conjugados
+
+    df_escalas_pag = identificar_trf_htl_conjugados(df_escalas_pag)
+    
     # Gerando coluna valor levando em conta o tipo de veículo usado
 
-    df_escalas_pag['Valor Final'] = df_escalas_pag.apply(
-        lambda row: row[f"Conjugado {row['Tipo Veiculo']}"] if row['Servico Conjugado'] == 'X' and f"Conjugado {row['Tipo Veiculo']}" in df_escalas_pag.columns 
-        else row[row['Tipo Veiculo']] if row['Tipo Veiculo'] in df_escalas_pag.columns else None, axis=1)
+    df_escalas_pag['Valor Final'] = df_escalas_pag.apply(lambda row: row[f"Conjugado {row['Tipo Veiculo']}"] if row['Servico Conjugado'] == 'X' else row[row['Tipo Veiculo']], axis=1)
+
+    # Gerando coluna valor do fornecedor Terra Dourada
+    
+    df_escalas_pag['Valor Final'] = df_escalas_pag.apply(lambda row: row[f"Conjugado {row['Tipo Veiculo']} Terra Dourada"] 
+                                                         if row['Servico Conjugado'] == 'X' and row['Fornecedor Motorista'] == 'TERRA DOURADA' 
+                                                         else row[f"{row['Tipo Veiculo']} Terra Dourada"] 
+                                                         if row['Servico Conjugado'] != 'X' and row['Fornecedor Motorista'] == 'TERRA DOURADA' else row['Valor Final'], axis=1)
+    
+    # Verificando se os serviços prestados pelo fornecedor Terra Dourada estão tarifados
+    
+    verificar_tarifarios_terra_dourada(df_escalas_pag)
     
     # Precificando 2 apoios como 1 só ou mais de 2 apoios com 2
 
     df_escalas_pag = precificar_apoios_2_em_1(df_escalas_pag)
+
+    # Ajustando valor de Damiao e Luiz Antonio nos apoios de pipa
+
+    df_escalas_pag = ajustar_valor_luiz_damiao_pipa(df_escalas_pag)
 
     st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Tipo de Servico', 'Servico', 'Fornecedor Motorista', 'Tipo Veiculo', 'Veiculo', 'Servico Conjugado', 'Valor Final']]
 
@@ -612,7 +767,12 @@ if 'df_pag_final' in st.session_state:
 
         fornecedor = st.multiselect('Fornecedores', sorted(lista_fornecedores), default=None)
 
-    if fornecedor:
+    if fornecedor and data_pagamento and data_inicial and data_final:
+
+        st.session_state.cnpj = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista'].isin(fornecedor)]['CNPJ/CPF Fornecedor Motorista'].iloc[0]
+
+        st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista'].isin(fornecedor)]\
+            ['Razao Social/Nome Completo Fornecedor Motorista'].iloc[0]
 
         row2_1 = st.columns(4)
 
@@ -658,3 +818,156 @@ if 'df_pag_final' in st.session_state:
                 file_name=nome_html,
                 mime="text/html"
             )
+
+        st.session_state.html_content = html_content
+
+    else:
+
+        row2_1 = st.columns(4)
+
+        with row2_1[0]:
+
+            enviar_informes = st.button(f'Enviar Informes Gerais')
+
+            if enviar_informes:
+
+                puxar_aba_simples(st.session_state.id_gsheet, 'Telefones Fornecedores', 'df_telefones')
+
+                lista_htmls = []
+
+                lista_telefones = []
+
+                for fornecedor_ref in lista_fornecedores:
+
+                    st.session_state.cnpj = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista']==fornecedor_ref]['CNPJ/CPF Fornecedor Motorista'].iloc[0]
+
+                    st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista']==fornecedor_ref]\
+                        ['Razao Social/Nome Completo Fornecedor Motorista'].iloc[0]
+
+                    telefone_guia = verificar_fornecedor_sem_telefone(st.session_state.id_gsheet, fornecedor_ref, st.session_state.df_telefones['Fornecedores'].unique().tolist())
+
+                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista'])\
+                        .reset_index(drop=True)
+
+                    df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
+
+                    df_pag_guia['Data da Escala'] = df_pag_guia['Data da Escala'].dt.strftime('%d/%m/%Y')
+
+                    soma_servicos = df_pag_guia['Valor Final'].sum()
+
+                    soma_servicos = format_currency(soma_servicos, 'BRL', locale='pt_BR')
+
+                    for item in ['Valor Final']:
+
+                        df_pag_guia[item] = df_pag_guia[item].apply(lambda x: format_currency(x, 'BRL', locale='pt_BR'))
+
+                    html = definir_html(df_pag_guia)
+
+                    nome_html = f'{fornecedor_ref}.html'
+
+                    criar_output_html(nome_html, html, fornecedor_ref, soma_servicos)
+
+                    with open(nome_html, "r", encoding="utf-8") as file:
+
+                        html_content_fornecedor_ref = file.read()
+
+                    lista_htmls.append([html_content_fornecedor_ref, telefone_guia])
+
+                payload = {"informe_html": lista_htmls}
+                
+                response = requests.post(st.session_state.id_webhook, json=payload)
+                    
+                if response.status_code == 200:
+                    
+                    st.success(f"Mapas de Pagamentos enviados com sucesso!")
+                    
+                else:
+                    
+                    st.error(f"Erro. Favor contactar o suporte")
+
+                    st.error(f"{response}")
+
+        with row2_1[1]:
+
+            enviar_informes_financeiro = st.button('Enviar Informes p/ Financeiro')
+
+            if enviar_informes_financeiro:
+
+                lista_htmls = []
+
+                lista_telefones = []
+
+                for fornecedor_ref in lista_fornecedores:
+
+                    st.session_state.cnpj = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista']==fornecedor_ref]['CNPJ/CPF Fornecedor Motorista'].iloc[0]
+
+                    st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista']==fornecedor_ref]\
+                        ['Razao Social/Nome Completo Fornecedor Motorista'].iloc[0]
+
+                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista'])\
+                        .reset_index(drop=True)
+
+                    df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
+
+                    df_pag_guia['Data da Escala'] = df_pag_guia['Data da Escala'].dt.strftime('%d/%m/%Y')
+
+                    soma_servicos = df_pag_guia['Valor Final'].sum()
+
+                    soma_servicos = format_currency(soma_servicos, 'BRL', locale='pt_BR')
+
+                    for item in ['Valor Final']:
+
+                        df_pag_guia[item] = df_pag_guia[item].apply(lambda x: format_currency(x, 'BRL', locale='pt_BR'))
+
+                    html = definir_html(df_pag_guia)
+
+                    nome_html = f'{fornecedor_ref}.html'
+
+                    criar_output_html(nome_html, html, fornecedor_ref, soma_servicos)
+
+                    with open(nome_html, "r", encoding="utf-8") as file:
+
+                        html_content_fornecedor_ref = file.read()
+
+                    lista_htmls.append([html_content_fornecedor_ref, '84994001644'])
+
+                payload = {"informe_html": lista_htmls}
+                
+                response = requests.post(st.session_state.id_webhook, json=payload)
+                    
+                if response.status_code == 200:
+                    
+                    st.success(f"Mapas de Pagamentos enviados com sucesso!")
+                    
+                else:
+                    
+                    st.error(f"Erro. Favor contactar o suporte")
+
+                    st.error(f"{response}")
+
+if 'html_content' in st.session_state and fornecedor:
+
+    with row2_1[2]:
+
+        enviar_informes = st.button(f"Enviar Informes | {', '.join(fornecedor)}")
+
+    if enviar_informes:
+
+        puxar_aba_simples(st.session_state.id_gsheet, 'Telefones Fornecedores', 'df_telefones')
+
+        telefone_guia = verificar_fornecedor_sem_telefone(st.session_state.id_gsheet, fornecedor, st.session_state.df_telefones['Fornecedores'].unique().tolist())
+        
+        payload = {"informe_html": st.session_state.html_content, 
+                    "telefone": telefone_guia}
+        
+        response = requests.post(st.session_state.id_webhook, json=payload)
+            
+        if response.status_code == 200:
+            
+            st.success(f"Mapas de Pagamento enviados com sucesso!")
+            
+        else:
+            
+            st.error(f"Erro. Favor contactar o suporte")
+
+            st.error(f"{response}")
