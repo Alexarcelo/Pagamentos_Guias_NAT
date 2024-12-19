@@ -56,14 +56,25 @@ def puxar_dados_phoenix():
 
 def puxar_aba_simples(id_gsheet, nome_aba, nome_df):
 
+    # GCP projeto onde está a chave credencial
     project_id = "grupoluck"
+
+    # ID da chave credencial do google.
     secret_id = "cred-luck-aracaju"
+
+    # Cria o cliente.
     secret_client = secretmanager.SecretManagerServiceClient()
+
     secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     response = secret_client.access_secret_version(request={"name": secret_name})
+
     secret_payload = response.payload.data.decode("UTF-8")
+
     credentials_info = json.loads(secret_payload)
+
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+
+    # Use the credentials to authorize the gspread client
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
 
@@ -93,14 +104,25 @@ def puxar_tarifario_fornecedores():
 
 def inserir_config(df_itens_faltantes, id_gsheet, nome_aba):
 
+    # GCP projeto onde está a chave credencial
     project_id = "grupoluck"
+
+    # ID da chave credencial do google.
     secret_id = "cred-luck-aracaju"
+
+    # Cria o cliente.
     secret_client = secretmanager.SecretManagerServiceClient()
+
     secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
     response = secret_client.access_secret_version(request={"name": secret_name})
+
     secret_payload = response.payload.data.decode("UTF-8")
+
     credentials_info = json.loads(secret_payload)
+
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+
+    # Use the credentials to authorize the gspread client
     credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
     client = gspread.authorize(credentials)
     
@@ -108,7 +130,7 @@ def inserir_config(df_itens_faltantes, id_gsheet, nome_aba):
 
     sheet = spreadsheet.worksheet(nome_aba)
 
-    sheet.batch_clear(["A2:Z100"])
+    sheet.batch_clear(["A2:Z1000"])
 
     data = df_itens_faltantes.values.tolist()
     sheet.update('A2', data)
@@ -144,14 +166,25 @@ def verificar_tarifarios(df_escalas_group, id_gsheet):
 
         st.dataframe(df_itens_faltantes, hide_index=True)
 
+        # GCP projeto onde está a chave credencial
         project_id = "grupoluck"
+    
+        # ID da chave credencial do google.
         secret_id = "cred-luck-aracaju"
+    
+        # Cria o cliente.
         secret_client = secretmanager.SecretManagerServiceClient()
+    
         secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
         response = secret_client.access_secret_version(request={"name": secret_name})
+    
         secret_payload = response.payload.data.decode("UTF-8")
+    
         credentials_info = json.loads(secret_payload)
+    
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    
+        # Use the credentials to authorize the gspread client
         credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
         client = gspread.authorize(credentials)
         
@@ -341,7 +374,8 @@ def adicionar_apoios_em_dataframe(df_escalas_group):
 
     df_escalas_com_1_apoio = df_escalas_com_1_apoio[~(df_escalas_com_1_apoio['Veiculo Apoio'].isin(list(filter(lambda x: x != '', st.session_state.df_config['Frota'].tolist()))))]
 
-    df_apoios_group = df_escalas_com_1_apoio.groupby(['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio']).agg({'Data da Escala': 'first', 'Data | Horario Apresentacao': 'first'}).reset_index()
+    df_apoios_group = df_escalas_com_1_apoio.groupby(['Escala Apoio', 'Veiculo Apoio', 'Motorista Apoio', 'Guia Apoio', 'Servico'])\
+        .agg({'Data da Escala': 'first', 'Data | Horario Apresentacao': 'first'}).reset_index()
 
     df_apoios_group = df_apoios_group.rename(columns={'Veiculo Apoio': 'Veiculo', 'Motorista Apoio': 'Motorista', 'Guia Apoio': 'Guia', 'Escala Apoio': 'Escala'})
 
@@ -471,14 +505,25 @@ def verificar_fornecedor_sem_telefone(id_gsheet, guia, lista_guias_com_telefone)
 
         st.dataframe(df_itens_faltantes, hide_index=True)
 
+        # GCP projeto onde está a chave credencial
         project_id = "grupoluck"
+    
+        # ID da chave credencial do google.
         secret_id = "cred-luck-aracaju"
+    
+        # Cria o cliente.
         secret_client = secretmanager.SecretManagerServiceClient()
+    
         secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
         response = secret_client.access_secret_version(request={"name": secret_name})
+    
         secret_payload = response.payload.data.decode("UTF-8")
+    
         credentials_info = json.loads(secret_payload)
+    
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    
+        # Use the credentials to authorize the gspread client
         credentials = Credentials.from_service_account_info(credentials_info, scopes=scopes)
         client = gspread.authorize(credentials)
         
@@ -565,6 +610,66 @@ def verificar_tarifarios_terra_dourada(df_escalas_pag):
     else:
 
         st.success('Todos os serviços estão tarifados!')
+
+def ajustar_apoios_bolero_pipa(df_escalas_pag): 
+
+    df_apoios = df_escalas_pag[df_escalas_pag['Servico']=='APOIO'].reset_index()
+
+    valores_escala = '|'.join(df_apoios['Escala'].astype(str).unique())
+
+    df_apoios_2 = st.session_state.df_escalas[(st.session_state.df_escalas['Apoio'].str.upper().str.contains(valores_escala, regex=True, na=False)) & 
+                                              (st.session_state.df_escalas['Servico']=='Passeio à João Pessoa com Bolero (PIPA)')][['Escala', 'Servico', 'Apoio']].drop_duplicates().reset_index(drop=True)
+    
+    for index in range(len(df_apoios_2)):
+
+        apoio_str = df_apoios_2.at[index, 'Apoio']
+
+        if ' | ' in apoio_str:
+
+            lista_apoios = apoio_str.split(' | ')
+
+            for item in lista_apoios:
+
+                dict_replace = {'Escala Auxiliar: ': '', ' Veículo: ': '', ' Motorista: ': '', ' Guia: ': ''}
+
+                for old, new in dict_replace.items():
+
+                    item = item.replace(old, new)
+
+                lista_insercao = item.split(',')
+
+                escala_apoio = lista_insercao[0]
+
+                df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Utilitario'] = 150
+
+        else:
+
+            df_escalas_com_1_apoio = criar_colunas_escala_veiculo_mot_guia(df_escalas_com_1_apoio)
+
+            escala_apoio = df_escalas_com_1_apoio['Escala Apoio'].iloc[0]
+
+            df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Utilitario'] = 150
+
+    return df_escalas_pag
+
+def ajustar_valor_litoral_sul_4x4(df_escalas_pag):
+
+    df_4x4_litoral_sul = df_escalas_pag[df_escalas_pag['Servico']=='Passeio Litoral Sul de 4x4'].reset_index()
+
+    df_4x4_litoral_sul_2 = st.session_state.df_escalas[st.session_state.df_escalas['Escala'].isin(df_4x4_litoral_sul['Escala'].unique())].groupby('Escala')\
+        .agg({'Modo': 'first', 'Total ADT': 'sum', 'Total CHD': 'sum'}).reset_index()
+    
+    df_4x4_litoral_sul_2 = df_4x4_litoral_sul_2[df_4x4_litoral_sul_2['Modo']=='REGULAR'].reset_index(drop=True)
+
+    for index in range(len(df_4x4_litoral_sul_2)):
+
+        total_a_pagar = (df_4x4_litoral_sul_2.at[index, 'Total ADT'] + df_4x4_litoral_sul_2.at[index, 'Total CHD']) * 130
+
+        escala_ref = df_4x4_litoral_sul_2.at[index, 'Escala']
+
+        df_escalas_pag.loc[df_escalas_pag['Escala']==escala_ref, 'Utilitario'] = total_a_pagar
+
+    return df_escalas_pag
 
 st.set_page_config(layout='wide')
 
@@ -684,9 +789,9 @@ if gerar_mapa:
 
     # Puxando tarifários e tratando colunas de números
 
-    with st.spinner('Puxando tarifários...'):
+    # with st.spinner('Puxando tarifários...'):
 
-        puxar_tarifario_fornecedores()
+    #     puxar_tarifario_fornecedores()
 
     # Filtrando período solicitado pelo usuário
 
@@ -719,6 +824,14 @@ if gerar_mapa:
     # Colocando valores tarifarios
         
     df_escalas_pag = pd.merge(df_escalas_group, st.session_state.df_tarifario, on='Servico', how='left')
+
+    # Ajustando valor de apoio a João Pessoa com Bolero (Pipa) p/ 150
+
+    df_escalas_pag = ajustar_apoios_bolero_pipa(df_escalas_pag)
+
+    # Ajustando valor de 4x4 Litoral Sul
+
+    df_escalas_pag = ajustar_valor_litoral_sul_4x4(df_escalas_pag)
 
     # Identificando transfers conjugados
 
