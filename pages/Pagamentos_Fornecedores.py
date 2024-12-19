@@ -640,7 +640,7 @@ def ajustar_apoios_bolero_pipa(df_escalas_pag):
 
                 escala_apoio = lista_insercao[0]
 
-                df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Utilitario'] = 150
+                df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Valor Final'] = 150
 
         else:
 
@@ -648,7 +648,7 @@ def ajustar_apoios_bolero_pipa(df_escalas_pag):
 
             escala_apoio = df_escalas_com_1_apoio['Escala Apoio'].iloc[0]
 
-            df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Utilitario'] = 150
+            df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Valor Final'] = 150
 
     return df_escalas_pag
 
@@ -789,9 +789,9 @@ if gerar_mapa:
 
     # Puxando tarifários e tratando colunas de números
 
-    # with st.spinner('Puxando tarifários...'):
+    with st.spinner('Puxando tarifários...'):
 
-    #     puxar_tarifario_fornecedores()
+        puxar_tarifario_fornecedores()
 
     # Filtrando período solicitado pelo usuário
 
@@ -824,10 +824,6 @@ if gerar_mapa:
     # Colocando valores tarifarios
         
     df_escalas_pag = pd.merge(df_escalas_group, st.session_state.df_tarifario, on='Servico', how='left')
-
-    # Ajustando valor de apoio a João Pessoa com Bolero (Pipa) p/ 150
-
-    df_escalas_pag = ajustar_apoios_bolero_pipa(df_escalas_pag)
 
     # Ajustando valor de 4x4 Litoral Sul
 
@@ -863,6 +859,10 @@ if gerar_mapa:
     # Ajustando valor de Damiao e Luiz Antonio nos apoios de pipa
 
     df_escalas_pag = ajustar_valor_luiz_damiao_pipa(df_escalas_pag)
+
+    # Ajustando valor de apoio a João Pessoa com Bolero (Pipa) p/ 150
+
+    df_escalas_pag = ajustar_apoios_bolero_pipa(df_escalas_pag)
 
     st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Tipo de Servico', 'Servico', 'Fornecedor Motorista', 'Tipo Veiculo', 'Veiculo', 'Servico Conjugado', 'Valor Final']]
 
