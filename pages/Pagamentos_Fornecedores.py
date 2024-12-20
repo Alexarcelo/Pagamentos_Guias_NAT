@@ -671,6 +671,27 @@ def ajustar_valor_litoral_sul_4x4(df_escalas_pag):
 
     return df_escalas_pag
 
+def eliminar_escalas_pipa_duplicadas(df_escalas_pag):
+
+    df_escalas_pipa = df_escalas_pag[df_escalas_pag['Servico'].isin(['Passeio Pipa - Camurupim', 'Passeio à Pipa'])].reset_index()
+
+    df_escalas_pipa_duplicadas = df_escalas_pipa.groupby(['Data da Escala', 'Fornecedor Motorista']).agg({'Escala': transformar_em_string, 'Servico': transformar_em_string, 
+                                                                                                                  'Tipo de Servico': 'count'}).reset_index()
+    
+    df_escalas_pipa_duplicadas = df_escalas_pipa_duplicadas[df_escalas_pipa_duplicadas['Tipo de Servico']>1].reset_index(drop=True)
+
+    for escalas in df_escalas_pipa_duplicadas['Escala'].unique():
+
+        lista_escalas = escalas.split(', ')
+
+        df_escalas_ref = df_escalas_pag[df_escalas_pag['Escala'].isin(lista_escalas)]
+
+        indice = df_escalas_ref[df_escalas_ref['Servico'] == 'Passeio Pipa - Camurupim'].index
+
+        df_escalas_pag = df_escalas_pag.drop(indice).reset_index(drop=True)
+
+    return df_escalas_pag
+
 st.set_page_config(layout='wide')
 
 if not 'id_gsheet' in st.session_state:
@@ -863,6 +884,10 @@ if gerar_mapa:
     # Ajustando valor de apoio a João Pessoa com Bolero (Pipa) p/ 150
 
     df_escalas_pag = ajustar_apoios_bolero_pipa(df_escalas_pag)
+
+    # Eliminando escalas duplicadas Pipa e Pipa Camurupim
+
+    df_escalas_pag = eliminar_escalas_pipa_duplicadas(df_escalas_pag)
 
     st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Tipo de Servico', 'Servico', 'Fornecedor Motorista', 'Tipo Veiculo', 'Veiculo', 'Servico Conjugado', 'Valor Final']]
 
