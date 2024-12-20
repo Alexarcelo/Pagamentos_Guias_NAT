@@ -269,7 +269,16 @@ def identificar_trf_conjugados(df_escalas_pag):
 
                     index_2 = df_ref.at[index, 'index']
 
-                    if regiao=='Natal' and ((primeiro_trf=='OUT') and (segundo_trf=='IN')) and (hora_voo_in_nat - hora_voo_out_nat <= timedelta(hours=2, minutes=30)):
+                    tipo_veiculo = df_ref.at[index, 'Tipo Veiculo']
+
+                    if regiao=='Natal' and ((primeiro_trf=='OUT') and (segundo_trf=='IN')) and (tipo_veiculo=='Bus' or tipo_veiculo=='Micro') and \
+                        (hora_voo_in_nat - hora_voo_out_nat <= timedelta(hours=4, minutes=30)):
+
+                        df_escalas_pag.at[index_1, 'Servico Conjugado'] = 'X'
+
+                        df_escalas_pag.at[index_2, 'Servico Conjugado'] = 'X'
+
+                    elif regiao=='Natal' and ((primeiro_trf=='OUT') and (segundo_trf=='IN')) and (hora_voo_in_nat - hora_voo_out_nat <= timedelta(hours=2, minutes=30)):
 
                         df_escalas_pag.at[index_1, 'Servico Conjugado'] = 'X'
 
