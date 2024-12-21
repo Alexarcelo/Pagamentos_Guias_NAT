@@ -993,7 +993,7 @@ if 'df_pag_final' in st.session_state:
 
                     telefone_guia = verificar_fornecedor_sem_telefone(st.session_state.id_gsheet, fornecedor_ref, st.session_state.df_telefones['Fornecedores'].unique().tolist())
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista'])\
+                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo'])\
                         .reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
@@ -1051,7 +1051,7 @@ if 'df_pag_final' in st.session_state:
                     st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista']==fornecedor_ref]\
                         ['Razao Social/Nome Completo Fornecedor Motorista'].iloc[0]
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista'])\
+                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo'])\
                         .reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
