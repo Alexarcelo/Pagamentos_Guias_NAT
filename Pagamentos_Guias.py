@@ -622,10 +622,10 @@ if gerar_mapa:
 
     df_escalas_pag = ajuste_passeios_escalas_diferentes(df_escalas_pag)
 
-    st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Modo', 'Tipo de Servico', 'Servico', 'Veiculo', 'Motorista', 'Guia', 'Idioma', 'Adicional Passeio Motoguia', 
+    st.session_state.df_pag_final_guias = df_escalas_pag[['Data da Escala', 'Modo', 'Tipo de Servico', 'Servico', 'Veiculo', 'Motorista', 'Guia', 'Idioma', 'Adicional Passeio Motoguia', 
                                                       'Adicional Motoguia Após 20:00', 'Adicional Diária Motoguia TRF|APOIO', 'Valor Serviço', 'Valor Total']]
 
-if 'df_pag_final' in st.session_state:
+if 'df_pag_final_guias' in st.session_state:
 
     st.header('Gerar Mapas')
 
@@ -633,7 +633,7 @@ if 'df_pag_final' in st.session_state:
 
     with row2[0]:
 
-        lista_guias = st.session_state.df_pag_final['Guia'].dropna().unique().tolist()
+        lista_guias = st.session_state.df_pag_final_guias['Guia'].dropna().unique().tolist()
 
         guia = st.selectbox('Guia', sorted(lista_guias), index=None)
 
@@ -645,7 +645,7 @@ if 'df_pag_final' in st.session_state:
 
         row2_1 = st.columns(4)
 
-        df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Guia']==guia].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
+        df_pag_guia = st.session_state.df_pag_final_guias[st.session_state.df_pag_final_guias['Guia']==guia].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
 
         df_data_correta = df_pag_guia.reset_index(drop=True)
 
@@ -720,7 +720,7 @@ if 'df_pag_final' in st.session_state:
 
                     telefone_guia = verificar_guia_sem_telefone(st.session_state.id_gsheet, guia_ref, st.session_state.df_telefones['Guias'].unique().tolist())
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Guia']==guia_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
+                    df_pag_guia = st.session_state.df_pag_final_guias[st.session_state.df_pag_final_guias['Guia']==guia_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
 
@@ -778,7 +778,7 @@ if 'df_pag_final' in st.session_state:
 
                     st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Guia']==guia_ref]['Razao Social/Nome Completo Fornecedor Guia'].iloc[0]
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Guia']==guia_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
+                    df_pag_guia = st.session_state.df_pag_final_guias[st.session_state.df_pag_final_guias['Guia']==guia_ref].sort_values(by=['Data da Escala', 'Veiculo', 'Motorista']).reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
 
