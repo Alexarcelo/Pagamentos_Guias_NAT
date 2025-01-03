@@ -727,7 +727,7 @@ if not 'df_config' in st.session_state:
 
         puxar_aba_simples(st.session_state.id_gsheet, 'Configurações Fornecedores', 'df_config')
 
-if not 'df_escalas' in st.session_state:
+if not 'df_escalas' in st.session_state or st.session_state.view_phoenix!='vw_pagamento_fornecedores':
 
     with st.spinner('Puxando dados do Phoenix...'):
 
