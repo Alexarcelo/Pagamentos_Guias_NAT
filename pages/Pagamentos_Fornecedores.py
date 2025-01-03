@@ -705,10 +705,6 @@ def eliminar_escalas_pipa_duplicadas(df_escalas_pag):
 
 st.set_page_config(layout='wide')
 
-if not 'mapa_forn_gerado' in st.session_state:
-
-    st.session_state.mapa_forn_gerado = 0
-
 if not 'id_gsheet' in st.session_state:
 
     st.session_state.id_gsheet = '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI'
@@ -904,13 +900,11 @@ if gerar_mapa:
 
     df_escalas_pag = eliminar_escalas_pipa_duplicadas(df_escalas_pag)
 
-    st.session_state.df_pag_final = df_escalas_pag[['Data da Escala', 'Tipo de Servico', 'Servico', 'Fornecedor Motorista', 'Tipo Veiculo', 'Veiculo', 'Servico Conjugado', 'Valor Final']]
+    st.session_state.df_pag_final_forn = df_escalas_pag[['Data da Escala', 'Tipo de Servico', 'Servico', 'Fornecedor Motorista', 'Tipo Veiculo', 'Veiculo', 'Servico Conjugado', 'Valor Final']]
 
-    st.session_state.df_pag_final['Valor Final'] = st.session_state.df_pag_final['Valor Final'].fillna(0)
+    st.session_state.df_pag_final_forn['Valor Final'] = st.session_state.df_pag_final_forn['Valor Final'].fillna(0)
 
-    st.session_state.mapa_forn_gerado = 1
-
-if st.session_state.mapa_forn_gerado == 1:
+if 'df_pag_final_forn' in st.session_state:
 
     st.header('Gerar Mapas')
 
@@ -918,7 +912,7 @@ if st.session_state.mapa_forn_gerado == 1:
 
     with row2[0]:
 
-        lista_fornecedores = st.session_state.df_pag_final['Fornecedor Motorista'].dropna().unique().tolist()
+        lista_fornecedores = st.session_state.df_pag_final_forn['Fornecedor Motorista'].dropna().unique().tolist()
 
         fornecedor = st.multiselect('Fornecedores', sorted(lista_fornecedores), default=None)
 
@@ -931,7 +925,7 @@ if st.session_state.mapa_forn_gerado == 1:
 
         row2_1 = st.columns(4)
 
-        df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista'].isin(fornecedor)].sort_values(by=['Data da Escala', 'Veiculo']).reset_index(drop=True)
+        df_pag_guia = st.session_state.df_pag_final_forn[st.session_state.df_pag_final_forn['Fornecedor Motorista'].isin(fornecedor)].sort_values(by=['Data da Escala', 'Veiculo']).reset_index(drop=True)
 
         df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
 
@@ -1001,7 +995,7 @@ if st.session_state.mapa_forn_gerado == 1:
 
                     telefone_guia = verificar_fornecedor_sem_telefone(st.session_state.id_gsheet, fornecedor_ref, st.session_state.df_telefones['Fornecedores'].unique().tolist())
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo'])\
+                    df_pag_guia = st.session_state.df_pag_final_forn[st.session_state.df_pag_final_forn['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo'])\
                         .reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
@@ -1059,7 +1053,7 @@ if st.session_state.mapa_forn_gerado == 1:
                     st.session_state.razao_social = st.session_state.df_cnpj_fornecedores[st.session_state.df_cnpj_fornecedores['Fornecedor Motorista']==fornecedor_ref]\
                         ['Razao Social/Nome Completo Fornecedor Motorista'].iloc[0]
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo'])\
+                    df_pag_guia = st.session_state.df_pag_final_forn[st.session_state.df_pag_final_forn['Fornecedor Motorista']==fornecedor_ref].sort_values(by=['Data da Escala', 'Veiculo'])\
                         .reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala'])
