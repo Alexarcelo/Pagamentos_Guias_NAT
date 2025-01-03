@@ -488,9 +488,13 @@ def ajuste_passeios_escalas_diferentes(df_escalas_pag):
 
 st.set_page_config(layout='wide')
 
+if not 'view_phoenix' in st.session_state:
+
+    st.session_state.view_phoenix = ''
+
 with st.spinner('Puxando dados do Phoenix...'):
 
-    if not 'df_escalas' in st.session_state:
+    if not 'df_escalas' in st.session_state or st.session_state.view_phoenix!='vw_pagamento_guias':
 
         puxar_dados_phoenix()
 
