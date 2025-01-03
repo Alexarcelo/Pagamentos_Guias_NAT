@@ -250,6 +250,10 @@ def verificar_fornecedor_sem_telefone(id_gsheet, guia, lista_guias_com_telefone)
 
 st.set_page_config(layout='wide')
 
+if not 'mapa_forn_add_gerado' in st.session_state:
+
+    st.session_state.mapa_forn_add_gerado = 0
+
 if not 'id_gsheet' in st.session_state:
 
     st.session_state.id_gsheet = '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI'
@@ -318,7 +322,9 @@ if gerar_mapa:
 
     st.session_state.df_pag_final = df_pag_fornecedores[['Data da Escala', 'Escala', 'Servico', 'Total ADT', 'Total CHD', 'Valor ADT', 'Valor CHD', 'Valor Final']]
 
-if 'df_pag_final' in st.session_state:
+    st.session_state.mapa_forn_add_gerado = 1
+
+if st.session_state.mapa_forn_add_gerado == 1:
 
     st.header('Gerar Mapas')
 
