@@ -1092,7 +1092,7 @@ if 'df_pag_final' in st.session_state:
 
                     st.error(f"{response}")
 
-if 'html_content' in st.session_state and fornecedor:
+if 'html_content' in st.session_state and len(fornecedor)==1:
 
     with row2_1[2]:
 
@@ -1102,7 +1102,7 @@ if 'html_content' in st.session_state and fornecedor:
 
         puxar_aba_simples(st.session_state.id_gsheet, 'Telefones Fornecedores', 'df_telefones')
 
-        telefone_guia = verificar_fornecedor_sem_telefone(st.session_state.id_gsheet, fornecedor, st.session_state.df_telefones['Fornecedores'].unique().tolist())
+        telefone_guia = verificar_fornecedor_sem_telefone(st.session_state.id_gsheet, fornecedor[0], st.session_state.df_telefones['Fornecedores'].unique().tolist())
         
         payload = {"informe_html": st.session_state.html_content, 
                     "telefone": telefone_guia}
