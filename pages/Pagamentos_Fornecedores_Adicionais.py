@@ -47,6 +47,8 @@ def puxar_dados_phoenix():
 
     st.session_state.df_escalas_bruto = gerar_df_phoenix('vw_pagamento_fornecedores', 'test_phoenix_natal')
 
+    st.session_state.view_phoenix = 'vw_pagamento_fornecedores'
+
     st.session_state.df_escalas = st.session_state.df_escalas_bruto[~(st.session_state.df_escalas_bruto['Status da Reserva'].isin(['CANCELADO', 'PENDENCIA DE IMPORTAÇÃO'])) & 
                                                                     ~(pd.isna(st.session_state.df_escalas_bruto['Status da Reserva'])) & ~(pd.isna(st.session_state.df_escalas_bruto['Escala']))]\
                                                                         .reset_index(drop=True)
@@ -262,7 +264,7 @@ if not 'id_webhook' in st.session_state:
 
     st.session_state.id_webhook = "https://conexao.multiatend.com.br/webhook/pagamentolucknatal"
 
-if not 'df_escalas' in st.session_state:
+if not 'df_escalas' in st.session_state or st.session_state.view_phoenix != 'vw_pagamento_fornecedores':
 
     with st.spinner('Puxando dados do Phoenix...'):
 
