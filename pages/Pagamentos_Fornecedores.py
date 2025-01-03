@@ -538,7 +538,7 @@ def verificar_fornecedor_sem_telefone(id_gsheet, guia, lista_guias_com_telefone)
         
         spreadsheet = client.open_by_key(id_gsheet)
 
-        sheet = spreadsheet.worksheet('Telefones Guias')
+        sheet = spreadsheet.worksheet('Telefones Fornecedores')
         sheet_data = sheet.get_all_values()
         last_filled_row = len(sheet_data)
         data = df_itens_faltantes.values.tolist()
