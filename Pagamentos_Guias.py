@@ -346,13 +346,13 @@ def definir_valor_diaria(df_escalas_pag):
 
     lista_escalas_sem_diaria = df_escalas_pag[df_escalas_pag['Valor Serviço']==0]['Escala'].unique().tolist()
 
+    nomes_servicos_zerados = ', '.join(df_escalas_pag[df_escalas_pag['Valor Serviço']==0]['Servico'].unique().tolist())
+
     if len(lista_escalas_sem_diaria):
 
         nomes_escalas = ', '.join(lista_escalas_sem_diaria)
 
-        st.error(f'As escalas {nomes_escalas} estão com idioma não identificado. Entre em contato com Marcelo pra resolver isso aqui, por favor')
-
-        st.stop()
+        st.error(f'As escalas {nomes_escalas} estão com valor de serviço zerado para os serviços {nomes_servicos_zerados}. Se você tiver tarifado algum valor para esses serviços, mas eles estão saindo zerados, por favor, contacte Marcelo, mas se esses serviços devem sair zerados mesmo, então continue com os mapas de pagamentos gerados')
 
     return df_escalas_pag
 
