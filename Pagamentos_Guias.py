@@ -488,6 +488,8 @@ def ajuste_passeios_escalas_diferentes(df_escalas_pag):
 
 st.set_page_config(layout='wide')
 
+st.session_state.view_phoenix
+
 if not 'view_phoenix' in st.session_state:
 
     st.session_state.view_phoenix = ''
