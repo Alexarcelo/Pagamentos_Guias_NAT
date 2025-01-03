@@ -252,10 +252,6 @@ def verificar_fornecedor_sem_telefone(id_gsheet, guia, lista_guias_com_telefone)
 
 st.set_page_config(layout='wide')
 
-if not 'mapa_forn_add_gerado' in st.session_state:
-
-    st.session_state.mapa_forn_add_gerado = 0
-
 if not 'id_gsheet' in st.session_state:
 
     st.session_state.id_gsheet = '1tsaBFwE3KS84r_I5-g3YGP7tTROe1lyuCw_UjtxofYI'
@@ -322,11 +318,9 @@ if gerar_mapa:
 
     df_pag_fornecedores = calcular_valor_final(df_escalas_group)
 
-    st.session_state.df_pag_final = df_pag_fornecedores[['Data da Escala', 'Escala', 'Servico', 'Total ADT', 'Total CHD', 'Valor ADT', 'Valor CHD', 'Valor Final']]
+    st.session_state.df_pag_final_forn_add = df_pag_fornecedores[['Data da Escala', 'Escala', 'Servico', 'Total ADT', 'Total CHD', 'Valor ADT', 'Valor CHD', 'Valor Final']]
 
-    st.session_state.mapa_forn_add_gerado = 1
-
-if st.session_state.mapa_forn_add_gerado == 1:
+if 'df_pag_final_forn_add' in st.session_state:
 
     st.header('Gerar Mapas')
 
@@ -334,7 +328,7 @@ if st.session_state.mapa_forn_add_gerado == 1:
 
     with row2[0]:
 
-        lista_servicos = st.session_state.df_pag_final['Servico'].dropna().unique().tolist()
+        lista_servicos = st.session_state.df_pag_final_forn_add['Servico'].dropna().unique().tolist()
 
         servico = st.multiselect('Serviço', sorted(lista_servicos), default=None)
 
@@ -342,7 +336,7 @@ if st.session_state.mapa_forn_add_gerado == 1:
 
         row2_1 = st.columns(4)
 
-        df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Servico'].isin(servico)].sort_values(by=['Data da Escala']).reset_index(drop=True)
+        df_pag_guia = st.session_state.df_pag_final_forn_add[st.session_state.df_pag_final_forn_add['Servico'].isin(servico)].sort_values(by=['Data da Escala']).reset_index(drop=True)
 
         df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala']).dt.strftime('%d/%m/%Y')
 
@@ -409,7 +403,7 @@ if st.session_state.mapa_forn_add_gerado == 1:
 
                     telefone_guia = verificar_fornecedor_sem_telefone(st.session_state.id_gsheet, servico_ref, st.session_state.df_telefones['Fornecedores'].unique().tolist())
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Servico']==servico_ref].sort_values(by=['Data da Escala']).reset_index(drop=True)
+                    df_pag_guia = st.session_state.df_pag_final_forn_add[st.session_state.df_pag_final_forn_add['Servico']==servico_ref].sort_values(by=['Data da Escala']).reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala']).dt.strftime('%d/%m/%Y')
 
@@ -463,7 +457,7 @@ if st.session_state.mapa_forn_add_gerado == 1:
 
                 for servico_ref in lista_servicos:
 
-                    df_pag_guia = st.session_state.df_pag_final[st.session_state.df_pag_final['Servico']==servico_ref].sort_values(by=['Data da Escala']).reset_index(drop=True)
+                    df_pag_guia = st.session_state.df_pag_final_forn_add[st.session_state.df_pag_final_forn_add['Servico']==servico_ref].sort_values(by=['Data da Escala']).reset_index(drop=True)
 
                     df_pag_guia['Data da Escala'] = pd.to_datetime(df_pag_guia['Data da Escala']).dt.strftime('%d/%m/%Y')
 
