@@ -1094,7 +1094,7 @@ if 'df_pag_final_forn' in st.session_state:
 
                     st.error(f"{response}")
 
-if 'html_content' in st.session_state and len(fornecedor)==1:
+if 'html_content' in st.session_state and len(fornecedor)==1 and 'df_pag_final_forn' in st.session_state:
 
     with row2_1[2]:
 
