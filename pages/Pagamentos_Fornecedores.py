@@ -651,7 +651,7 @@ def ajustar_apoios_bolero_pipa(df_escalas_pag):
 
                 escala_apoio = lista_insercao[0]
 
-                df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Valor Final'] = 150
+                df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Valor Final'] = 200
 
         else:
 
@@ -659,7 +659,7 @@ def ajustar_apoios_bolero_pipa(df_escalas_pag):
 
             escala_apoio = df_escalas_com_1_apoio['Escala Apoio'].iloc[0]
 
-            df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Valor Final'] = 150
+            df_escalas_pag.loc[df_escalas_pag['Escala']==escala_apoio, 'Valor Final'] = 200
 
     return df_escalas_pag
 
